@@ -96,8 +96,8 @@ Tools are held in the Smart Head by a high-precision **Maxwell coupling** (a 3-p
 
 | Option | Nozzle sizes | Best for |
 | ------ | ------------ | -------- |
-| **CHT (Core Heating Technology)** | 0.25 / 0.4 / 0.5 / 0.6 / 0.8 / 1.0mm | Most materials: PLA, PETG, ABS, ASA, PA, abrasive-filled filaments |
-| **Standard (non-CHT)** | 0.25 / 0.4mm | Flexible filaments (TPU, TPE) and sensitive composites |
+| **CHT (Core Heating Technology)** | 0.2 / 0.4 / 0.5 / 0.6 / 0.8 / 1.0mm | Most materials: PLA, PETG, ABS, ASA, PA, abrasive-filled filaments |
+| **Standard (non-CHT)** | 0.2 / 0.4mm | Flexible filaments (TPU, TPE) and sensitive composites |
 
 #### Accessories
 
@@ -264,7 +264,7 @@ All Thin Passive Tools are built from hardened steel, contain no electronics or 
 
 | Specification | Value |
 | ------------- | ----- |
-| Available nozzle sizes | 0.25 / 0.4 / 0.5 / 0.6 / 0.8 / 1.0mm |
+| Available nozzle sizes | 0.2 / 0.4 / 0.5 / 0.6 / 0.8 / 1.0mm |
 | Material | Hardened steel |
 | Compatible filament diameter | 1.75mm |
 | Maximum nozzle temperature | 300°C |
@@ -275,7 +275,7 @@ All Thin Passive Tools are built from hardened steel, contain no electronics or 
 
 | Specification | Value |
 | ------------- | ----- |
-| Available nozzle sizes | 0.25 / 0.4mm |
+| Available nozzle sizes | 0.2 / 0.4mm |
 | Material | Hardened steel |
 | Compatible filament diameter | 1.75mm |
 | Maximum nozzle temperature | 300°C |
