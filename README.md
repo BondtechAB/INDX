@@ -23,6 +23,7 @@
    - [Firmware Configuration](#firmware-configuration)
      - [Klipper / Kalico](#klipper)
        - [INDX macro files](#indx-macro-files)
+       - [Mainsail RESUME coexistence](#mainsail-resume-coexistence)
        - [Automated dock X measurement](#automated-dock-x-measurement-built-in)
        - [Homing override](#homing-order-important)
      - [RRF (RepRapFirmware)](#rrf-reprapfirmware)
@@ -851,6 +852,7 @@ The INDX firmware plugin provides a set of `.cfg` files you include from `printe
 | `indx.cfg` | User configuration: tool positions and related settings. **The only file you need to edit.** |
 | `indx-tc-macros.cfg` | Tool change logic: `CHANGE_TOOL`, `PARK_TOOL`, boot detection. Do not edit. |
 | `indx-cal.cfg` | Calibration macros: dock position, XY/Z offset calibration. |
+| `indx-helpers.cfg` | Optional helpers: latch lock/unlock, load-cell tool presence, RESUME wrapper for mid-print detect. Include after `indx-tc-macros.cfg`. |
 
 Include them from your `printer.cfg`:
 
@@ -858,7 +860,24 @@ Include them from your `printer.cfg`:
 [include indx/indx.cfg]
 [include indx/indx-tc-macros.cfg]
 [include indx/indx-cal.cfg]
+[include indx/indx-helpers.cfg]   # after tc-macros; after mainsail.cfg in printer.cfg
 ```
+
+##### Mainsail RESUME coexistence
+
+If you use Mainsail's stock `mainsail.cfg`, it defines `[gcode_macro RESUME]`. Klipper merges duplicate section names; when `indx-helpers.cfg` is included later, INDX's RESUME (tool-detect recheck) replaces Mainsail's body. Without a printer-side patch, Mainsail's temp restore, runout gate, and `_CLIENT_EXTRUDE` never run.
+
+INDX owns the `RESUME` command and `rename_existing: RESUME_BASE`. Move Mainsail's wrapper to `_CLIENT_RESUME` in your local `mainsail.cfg` (or a small override file included after Mainsail):
+
+1. Rename `[gcode_macro RESUME]` to `[gcode_macro _CLIENT_RESUME]`
+2. Remove `rename_existing: RESUME_BASE` from that section (INDX already renames the builtin)
+3. In `CANCEL_PRINT`, change `printer['gcode_macro RESUME']` to `printer['gcode_macro _CLIENT_RESUME']`
+4. In `CANCEL_PRINT`, `PAUSE`, and the renamed section body, change every `SET_GCODE_VARIABLE MACRO=RESUME` to `MACRO=_CLIENT_RESUME`
+5. Keep `RESUME_BASE VELOCITY=...` at the end of `_CLIENT_RESUME`
+
+Call chain after the patch: `RESUME` (INDX) -> optional `_RESUME_PRESENCE_*` on tool-detect fail -> `_CLIENT_RESUME` (Mainsail) -> `RESUME_BASE` (Klipper). If `_CLIENT_RESUME` is missing, INDX falls back to `RESUME_BASE` so resume still works.
+
+After editing, run `FIRMWARE_RESTART`. `HELP` should show INDX's RESUME description.
 
 ##### Automated dock X measurement (built in)
 
