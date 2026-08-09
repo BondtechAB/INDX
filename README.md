@@ -119,12 +119,13 @@ Tools are held in the Smart Head by a high-precision **Maxwell coupling** (a 3-p
 
 ### Tool Change Sequence
 
-1. Smart Head moves to the dock and deposits the current tool
-2. Smart Head picks up the next tool
-3. Induction coil heats the new nozzle to printing temperature (~4-10 seconds)
-4. Printing resumes
+1. Tool heater switch off
+2. Smart Head moves to the dock and deposits the current tool
+3. Smart Head picks up the next tool
+4. Induction coil heats the new nozzle to printing temperature (~4-10 seconds)
+5. Printing resumes
 
-**Total tool change time: ~14 seconds**, depending on temperature delta, priming, and travel distance.
+**Total tool change time: ~14 seconds**, depending on temperature delta, priming, and travel distance. In real conditions with priming or purge tower it is about 20 to 25 seconds.
 
 Because every material runs in its own dedicated nozzle, there is no cross-contamination between materials; purging is not required. The only material used after a tool change is a small **prime** at the start of printing: when a nozzle heats up, the filament in the melt zone re-melts and pressure needs to be rebuilt before extrusion is consistent. Priming pushes a small amount of filament through to establish that pressure, ensuring the first line of print is correctly extruded. Because each tool also cools passively when separated from the Smart Head, oozing is minimal.
 
@@ -167,7 +168,7 @@ Select the accessories that match your printer when ordering:
 | **Tool Dock** | Pre-made SLS hardware or STL/STEP files | Bondtech sells ready-made docks for common Makerbeam/1515 extrusion. Or download the files and print your own. |
 | **X-Carriage adapter** | MGN12H option for 6mm belts, or download files | Required to mount the Smart Head to your carriage. Available for common CoreXY standards; check the shop or download from GitHub. |
 
-> **What is CAN bus?** CAN bus is a communication standard that lets multiple devices share a single cable. You don't need to understand the protocol in depth; the Link Board handles it for you. In practice it means the Smart Head connects to the Link Board via just one 4-wire cable (carrying both power and data) instead of the bundle of wires a conventional toolhead needs. CAN is currently only supported on RRF; USB is used for Klipper/Kalico.
+> **What is CAN bus?** CAN bus is a communication standard that lets multiple devices share a single cable. INDX use the CAN FD protocol. You don't need to understand the protocol in depth; the Link Board handles it for you. In practice it means the Smart Head connects to the Link Board via just one 4-wire cable (carrying both power and data) instead of the bundle of wires a conventional toolhead needs. **CAN is currently only supported on RRF; USB is used for Klipper/Kalico.**
 >
 > **Choosing cable length:** Measure the wiring run from your Link Board mounting location to the Smart Head along the actual path the cable will travel (over the gantry, not straight-line). Add some slack. When in doubt, order longer. A cable that is too short cannot be extended, and excess length can be coiled and managed.
 
@@ -475,6 +476,7 @@ For wiring purposes:
 - The system runs on **24V**
 - The Link Board is powered by a direct 24V/GND connection from your PSU
 - Power is then passed through the Link cable (24V, GND, CAN+/D+, CAN−/D-) from the Link Board to the Smart Head; no additional PSU connection needed at the Smart Head
+- Check your voltage while printer is running (especially with CPAP fan and heating up nozzle) after system integration is successful. 
 
 **Mainboard compatibility**
 
@@ -484,6 +486,7 @@ For wiring purposes:
 ### Software Requirements
 
 - **Kalico (recommended):** native INDX support is built in — nothing to install on the host, and the MCU firmware ships with Kalico. See [Firmware Configuration](#klipper).
+- **Kalico (bleeding-edge-v2):** same as Kalico, but with several new/different features. This branch of Kalico is not tested and not supportet right now. See [Firmware Configuration](#klipper).
 - **Klipper (mainline):** add the [`indx_klipper`](https://github.com/BondtechAB/indx_klipper) module (installed with its `install.sh`), which brings the same INDX support to a stock Klipper install. See [Firmware Configuration](#klipper).
 - RRF: RepRapFirmware **3.7.0-alpha (2026-02-10) or later**, required on both the main board and the Bondtech INDX PCB.
 - Slicer: Any slicer with multi-filament or multi-color support
@@ -760,6 +763,10 @@ After installing the plugin, add your INDX configuration to `printer.cfg`:
 Add the following to your `printer.cfg`. The `serial` path under `[mcu indxmcu]` will be unique to your board; see the note below on how to find it.
 
 ```ini
+# Check if you already have a save_variables entry in your printer.cfg. If yes: Don't change it and don't copy it from here.
+#[save_variables]
+#filename: /home/pi/printer_data/config/variables.cfg
+
 [mcu indxmcu]
 # Replace the serial path below with the one from your board — see "Finding your serial path" below
 serial: /dev/serial/by-id/usb-Bondtech_INDX_<your-serial-here>
@@ -823,6 +830,24 @@ sensor_type: as5047d
 stepper: extruder
 cs_pin: indxmcu:encoder_cs
 spi_bus: sercom1
+
+[load_cell_probe]
+sensor_type: ads131m02
+cs_pin: indxmcu:loadcell_cs
+spi_bus: sercom1
+data_ready_pin: indxmcu:loadcell_drdy
+z_offset: 0
+channels: 0
+force_safety_limit: 0
+trigger_force: 150
+speed: 2
+pullback_distance: 0.2
+pullback_speed: 0.3
+samples: 1
+sample_retract_dist: 0.25
+samples_tolerance: 0.05
+samples_tolerance_retries: 3
+sample_rate: 500
 ```
 
 > ⚠️ **Do not change `rotation_distance`**
@@ -1019,7 +1044,9 @@ Run the commands in order from the Kalico/Klipper console:
 | `INDX_LOAD_FILAMENT` | Loads filament and measures its heat capacity so the model accounts for the energy the filament carries away (see below) |
 | `SAVE_CONFIG` | Writes the calibrated values into your `[indx]` config section and restarts |
 
-`INDX_CALIBRATE` and `INDX_FAN_CALIBRATE` characterise the nozzle/tool and the part cooling fan — run them once per tool type and cooling setup. Because these values feed the safety model rather than the control loop, don't hand-edit them afterwards; re-run the routine if the tool type or part cooling setup changes.
+`INDX_CALIBRATE` and `INDX_FAN_CALIBRATE` characterise the nozzle/tool and the part cooling fan — run them once per tool type and cooling setup. Because these values feed the safety model rather than the control loop, don't hand-edit them afterwards; re-run the routine if the tool type or part cooling setup changes. 
+`INDX_FAN_CALIBRATE` should be done in printing conditions which means nozzle must be closed to the bed (0.1 to 0.5mm)
+`INDX_FAN_CALIBRATE` with CPAP fan could need more time to calculate the model, therefore it is recomended to use `INDX_FAN_CALIBRATE HOLD_TIME=30`
 
 **Filament heat capacity.** Different filaments carry heat away from the nozzle at different rates, so the safety model also needs to know which filament is loaded. You set this when you load filament into a tool, not during the one-time calibration above:
 
@@ -1234,10 +1261,11 @@ Prerequisites:
 
 Per tool, the macro:
 1. Picks up the tool
-2. Pre-probes 3× at a per-tool debris-clearing spot to clean the nozzle tip
-3. Runs a convergence loop at a clean spot: probes repeatedly until the 4-sample rolling variance is below 0.005 mm, fuzzing to a new position if it stalls
-4. Takes a median of 5 final samples as the result
-5. Parks the tool
+2. Heat up tool to 150°C (adjustable in indx-cal.cfg)
+3. Pre-probes 3× at a per-tool debris-clearing spot to clean the nozzle tip
+4. Runs a convergence loop at a clean spot: probes repeatedly until the 4-sample rolling variance is below 0.005 mm, fuzzing to a new position if it stalls
+5. Takes a median of 5 final samples as the result
+6. Parks the tool
 
 T0's median result sets the global Z reference. All other tools' offsets are saved as `t{n}_offset_z` relative to T0. Run `CAL_CHECK_OFFSETS` to inspect the results.
 
@@ -1268,7 +1296,7 @@ Tool change motion speed and acceleration are controlled by three preset modes: 
 | Mode | G-code | Speed multiplier | Accel multiplier | XY stepper mode |
 |---|---|---|---|---|
 | **Stealth** | `MODE_STEALTH` | 20% | 20% | StealthChop (quiet) |
-| **Normal** | `MODE_NORMAL` | 70% | 70% | SpreadCycle |
+| **Normal** | `MODE_NORMAL` | 60% | 60% | SpreadCycle |
 | **Sport** | `MODE_SPORT` | 100% | 100% | SpreadCycle |
 
 **Stealth** runs the toolchange at 20% of your printer's configured limits. The XY steppers are switched to StealthChop, making the swap nearly silent. Useful for overnight printing or noise-sensitive environments. The trade-off is a longer toolchange duration and slightly higher stepper heat.
