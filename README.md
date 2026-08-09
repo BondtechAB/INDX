@@ -1305,6 +1305,8 @@ Tool change motion speed and acceleration are controlled by three preset modes: 
 
 **Sport** uses the full `max_velocity` and `max_accel` from your `printer.cfg`. This gives the fastest possible toolchange times for your specific printer. Make sure your configured limits are within what your printer can actually handle; if `max_velocity` or `max_accel` are set too high, Sport mode will expose that immediately. Input shaper should be tuned before running Sport; without it, high-acceleration toolchange moves can cause the steppers to lose steps.
 
+Mode switching also sets StealthChop or SpreadCycle on every configured XY TMC driver (`tmc2208`, `tmc2209`, `tmc2130`, `tmc2240`, or `tmc5160`). On AWD setups, that includes `stepper_x1` and `stepper_y1` when present. The driver type is detected once at boot from your `printer.cfg`.
+
 The active mode persists across reboots. To change it, run the macro from the console or add it to your start G-code:
 
 ```gcode
