@@ -23,6 +23,7 @@
    - [Firmware Configuration](#firmware-configuration)
      - [Klipper / Kalico](#klipper)
        - [INDX macro files](#indx-macro-files)
+       - [Mainsail RESUME coexistence](#mainsail-resume-coexistence)
        - [Automated dock X measurement](#automated-dock-x-measurement-built-in)
        - [Homing override](#homing-order-important)
      - [RRF (RepRapFirmware)](#rrf-reprapfirmware)
@@ -852,6 +853,7 @@ The INDX firmware plugin provides a set of `.cfg` files you include from `printe
 | `indx.cfg` | User configuration: tool positions and related settings. **The only file you need to edit.** |
 | `indx-tc-macros.cfg` | Tool change logic: `CHANGE_TOOL`, `PARK_TOOL`, boot detection. Do not edit. |
 | `indx-cal.cfg` | Calibration macros: dock position, XY/Z offset calibration. |
+| `indx-helpers.cfg` | Optional helpers: latch lock/unlock, load-cell tool presence, RESUME wrapper for mid-print detect. Include after `indx-tc-macros.cfg`. |
 
 Include them from your `printer.cfg`:
 
@@ -859,7 +861,24 @@ Include them from your `printer.cfg`:
 [include indx/indx.cfg]
 [include indx/indx-tc-macros.cfg]
 [include indx/indx-cal.cfg]
+[include indx/indx-helpers.cfg]   # after tc-macros; after mainsail.cfg in printer.cfg
 ```
+
+##### Mainsail RESUME coexistence
+
+If you use Mainsail's stock `mainsail.cfg`, it defines `[gcode_macro RESUME]`. Klipper merges duplicate section names; when `indx-helpers.cfg` is included later, INDX's RESUME (tool-detect recheck) replaces Mainsail's body. Without a printer-side patch, Mainsail's temp restore, runout gate, and `_CLIENT_EXTRUDE` never run.
+
+INDX owns the `RESUME` command and `rename_existing: RESUME_BASE`. Move Mainsail's wrapper to `_CLIENT_RESUME` in your local `mainsail.cfg` (or a small override file included after Mainsail):
+
+1. Rename `[gcode_macro RESUME]` to `[gcode_macro _CLIENT_RESUME]`
+2. Remove `rename_existing: RESUME_BASE` from that section (INDX already renames the builtin)
+3. In `CANCEL_PRINT`, change `printer['gcode_macro RESUME']` to `printer['gcode_macro _CLIENT_RESUME']`
+4. In `CANCEL_PRINT`, `PAUSE`, and the renamed section body, change every `SET_GCODE_VARIABLE MACRO=RESUME` to `MACRO=_CLIENT_RESUME`
+5. Keep `RESUME_BASE VELOCITY=...` at the end of `_CLIENT_RESUME`
+
+Call chain after the patch: `RESUME` (INDX) -> optional `_RESUME_PRESENCE_*` on tool-detect fail -> `_CLIENT_RESUME` (Mainsail) -> `RESUME_BASE` (Klipper). If `_CLIENT_RESUME` is missing, INDX falls back to `RESUME_BASE` so resume still works.
+
+After editing, run `FIRMWARE_RESTART`. `HELP` should show INDX's RESUME description.
 
 ##### Automated dock X measurement (built in)
 
@@ -876,26 +895,27 @@ The `indx-cal.cfg` macros wrap this into the calibration commands you actually r
 
 ##### Homing order (important)
 
-With a dock mounted on your printer, the default homing sequence can cause crashes. The Smart Head must move away from the dock before X is homed, and if a tool other than T0 is currently mounted it must be parked before Z is homed.
+With a dock mounted on your printer, the default homing sequence can cause crashes. The Smart Head must move away from the dock before X is homed, and Z homing needs a seated tool (the load cell is the nozzle probe).
 
 The INDX macro package includes a ready-to-use `[homing_override]` in `homing.cfg` that handles all of this. Its sequence, in full:
 
-1. Move Z up slightly to clear the bed before any XY movement (move bed down if using a bed raiser)
-2. Home Y (with reduced TMC current for sensorless homing)
-3. Home X (with reduced TMC current for sensorless homing)
-4. If any tool other than T0 is active: park it in the dock
-5. If T0 is not already picked up: pick up T0
-6. Move to bed centre and home Z
+1. If Z is already known: raise to `probe_z_clearance` (set in `indx.cfg`)
+2. Home Y, then move to `clearance_y` so X does not sweep into the dock
+3. Home X
+4. Before Z: require a seated tool (`VERIFY_TOOL_PRESENT`). If a tool is already locked, Z homes with that tool (its XY/Z offsets are re-applied before the probe). If the head is empty and the dock is usable, pick T0. If Z has never been homed, dock pickup is unsafe - seat and lock a tool by hand after load-cell calibration, then home. Empty-head Z without a known tool is refused (the load cell will not trigger without a nozzle).
+5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre) and home Z
 
-T0 is always the reference tool for Z homing. This ensures Z is always probed with the same tool, keeping Z offsets for all other tools consistent.
+`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked - toolchanges keep applying `tool_z + global_z`, so nozzle height stays consistent after a non-T0 Z home. Mesh or tilt after that home (as in `PRINT_START`) keeps the frame consistent.
+
+If you use sensorless XY homing, wrap the `G28 Y` / `G28 X` steps in your usual TMC current reduce/restore (merge into the override if you already have one).
 
 **Review your `PRINT_START` macro**
 
 If you are migrating from a single-toolhead printer, your existing `PRINT_START` macro almost certainly heats the hotend before printing starts, something like `M104 S{first_layer_temperature}` or `M109 S{first_layer_temperature}`. With INDX, this will cause problems: there is no hotend to heat until a tool has been picked up by the Smart Head.
 
-> ⚠️ Any hotend heating commands in your `PRINT_START` macro must come **after** the first tool pick-up (`T0`). Sending a heat command before a tool is picked up will result in an error, and depending on your macro structure, may cause a crash or leave the printer in a bad state.
+> ⚠️ Any hotend heating commands in your `PRINT_START` macro must come **after** the first tool pick-up. Sending a heat command before a tool is picked up will result in an error, and depending on your macro structure, may cause a crash or leave the printer in a bad state.
 
-Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature wait commands) to after the first `T0` call. If you are writing a fresh macro, pick up a tool first, then heat.
+Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature wait commands) to after the first tool pick (`Tn` / `CHANGE_TOOL`). If you are writing a fresh macro, pick up a tool first, then heat.
 
 #### RRF (RepRapFirmware)
 
