@@ -1370,9 +1370,22 @@ Regardless of which XY method you use, Z offsets are set automatically using the
 CAL_Z
 ```
 
+By default, calibration is performed cold, preserving the existing behaviour. To
+measure offsets with every nozzle at the same temperature, pass a nozzle target and
+an optional soak time:
+
+```gcode
+CAL_Z NOZZLE_TEMP=150 SOAK=10
+```
+
+Each tool is heated only after pickup, held at the target for the requested soak,
+then measured. The heater is switched off before that tool is parked. The bed heater
+is not controlled by `CAL_Z`.
+
 Prerequisites:
 - Printer homed (homes automatically if not)
 - **No filament available to the extruder gears in any tool** — if filament is loaded, latch engage moves during pickup can spike load-cell readings and cause calibration to fail.
+- When using `NOZZLE_TEMP`, make sure the nozzle tips are clean. Any softened filament on a nozzle can affect the load-cell measurement.
 
 Per tool, the macro:
 1. Picks up the tool
