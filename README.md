@@ -976,13 +976,13 @@ With a dock mounted on your printer, the default homing sequence can cause crash
 
 The INDX macro package includes a ready-to-use `[homing_override]` in `homing.cfg` that handles all of this. Its sequence, in full:
 
-1. If Z is already known: raise to `probe_z_clearance` (set in `indx.cfg`). If Z is unknown: a relative hop of that height (kinematic Z=0, then `CLEAR_HOMED`).
+1. Raise to `probe_z_clearance` (set in `indx.cfg`). If Z is unknown, hop that height then un-home Z so the later probe is a real home.
 2. Home Y. `G28 X` with Y unknown homes Y first.
-3. Home X. If Y was already known and the head is still on the dock side (`dock_dir` in `indx.cfg`), move to `clearance_y` first so X does not sweep the dock. Just-homed Y is already at the endstop, so X homes immediately.
-4. Before Z: read the load cell. Soft-state (`active_tool`) is not enough - a stale empty flag with a tool still locked would send `CHANGE_TOOL T0` into that tool. Missing or uncalibrated load cell is an error. Seat is `abs(force_g + tare_force) >= home_min_force_g` (set in `indx.cfg`, default 800). If the cell sees a tool and `active_tool` is unknown, that is an error. If the cell is empty and Z has been homed before, pick T0 (including when soft-state already says T0) and read again. If the cell is empty and Z has never been homed, stop and seat a tool by hand - the dock is not safe at a guessed height. If a tool is already locked and the cell agrees, Z homes with that tool (its XY/Z offsets are re-applied before the probe).
+3. Home X. If Y was already homed and the head is still on the dock side (`dock_dir` in `indx.cfg`), move to `clearance_y` first so X does not sweep the dock.
+4. Before Z, read the load cell. The saved tool number is not enough: it can say empty while a tool is still locked, which would crash a T0 pickup. Missing or uncalibrated cell is an error. Tune seat with `home_min_force_g` in `indx.cfg` (default 800). If nothing is seated and Z has never been homed, seat a tool by hand. If Z is already known, pick T0. If a tool is already locked and the cell agrees, home Z with that tool.
 5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre) and home Z.
 
-`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked and the load cell confirms it - toolchanges keep applying `tool_z + global_z`, so nozzle height stays consistent after a non-T0 Z home.
+`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked and the load cell confirms it.
 
 If you use sensorless XY homing, wrap the `G28 Y` / `G28 X` steps in your usual TMC current reduce/restore (merge into the override if you already have one).
 
