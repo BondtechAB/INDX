@@ -875,6 +875,7 @@ The INDX firmware plugin provides a set of `.cfg` files you include from `printe
 | `indx.cfg` | User configuration: tool positions and related settings. **The only file you need to edit.** |
 | `indx-tc-macros.cfg` | Tool change logic: `CHANGE_TOOL`, `PARK_TOOL`, boot detection. Do not edit. |
 | `indx-cal.cfg` | Calibration macros: dock position, XY/Z offset calibration. |
+| `homing.cfg` | `[homing_override]`: Y then X, load-cell seat check, then Z. Do not edit. |
 
 Include them from your `printer.cfg`:
 
@@ -882,7 +883,10 @@ Include them from your `printer.cfg`:
 [include indx/indx.cfg]
 [include indx/indx-tc-macros.cfg]
 [include indx/indx-cal.cfg]
+[include indx/homing.cfg]
 ```
+
+Klipper allows only one `[homing_override]`. If your printer already has one (sensorless current, bed raiser, etc.), merge the INDX sequence into yours instead of including `homing.cfg` as-is.
 
 ##### Required Klipper sections
 
@@ -968,26 +972,27 @@ The `indx-cal.cfg` macros wrap this into the calibration commands you actually r
 
 ##### Homing order (important)
 
-With a dock mounted on your printer, the default homing sequence can cause crashes. The Smart Head must move away from the dock before X is homed, and if a tool other than T0 is currently mounted it must be parked before Z is homed.
+With a dock mounted on your printer, the default homing sequence can cause crashes. The Smart Head must move away from the dock before X is homed, and Z homing needs a seated tool (the load cell is the nozzle probe).
 
 The INDX macro package includes a ready-to-use `[homing_override]` in `homing.cfg` that handles all of this. Its sequence, in full:
 
-1. Move Z up slightly to clear the bed before any XY movement (move bed down if using a bed raiser)
-2. Home Y (with reduced TMC current for sensorless homing)
-3. Home X (with reduced TMC current for sensorless homing)
-4. If any tool other than T0 is active: park it in the dock
-5. If T0 is not already picked up: pick up T0
-6. Move to bed centre and home Z
+1. If Z is already known: raise to `probe_z_clearance` (set in `indx.cfg`). If Z is unknown: a relative hop of that height (kinematic Z=0, then `CLEAR_HOMED`).
+2. Home Y. `G28 X` with Y unknown homes Y first.
+3. Home X. If Y was already known and the head is still on the dock side (`dock_dir` in `indx.cfg`), move to `clearance_y` first so X does not sweep the dock. Just-homed Y is already at the endstop, so X homes immediately.
+4. Before Z: read the load cell. Soft-state (`active_tool`) is not enough - a stale empty flag with a tool still locked would send `CHANGE_TOOL T0` into that tool. Missing or uncalibrated load cell is an error. Seat is `abs(force_g + tare_force) >= home_min_force_g` (set in `indx.cfg`, default 800). If the cell sees a tool and `active_tool` is unknown, that is an error. If the cell is empty and Z has been homed before, pick T0 (including when soft-state already says T0) and read again. If the cell is empty and Z has never been homed, stop and seat a tool by hand - the dock is not safe at a guessed height. If a tool is already locked and the cell agrees, Z homes with that tool (its XY/Z offsets are re-applied before the probe).
+5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre) and home Z.
 
-T0 is always the reference tool for Z homing. This ensures Z is always probed with the same tool, keeping Z offsets for all other tools consistent.
+`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked and the load cell confirms it - toolchanges keep applying `tool_z + global_z`, so nozzle height stays consistent after a non-T0 Z home.
+
+If you use sensorless XY homing, wrap the `G28 Y` / `G28 X` steps in your usual TMC current reduce/restore (merge into the override if you already have one).
 
 **Review your `PRINT_START` macro**
 
 If you are migrating from a single-toolhead printer, your existing `PRINT_START` macro almost certainly heats the hotend before printing starts, something like `M104 S{first_layer_temperature}` or `M109 S{first_layer_temperature}`. With INDX, this will cause problems: there is no hotend to heat until a tool has been picked up by the Smart Head.
 
-> ⚠️ Any hotend heating commands in your `PRINT_START` macro must come **after** the first tool pick-up (`T0`). Sending a heat command before a tool is picked up will result in an error, and depending on your macro structure, may cause a crash or leave the printer in a bad state.
+> ⚠️ Any hotend heating commands in your `PRINT_START` macro must come **after** the first tool pick-up. Sending a heat command before a tool is picked up will result in an error, and depending on your macro structure, may cause a crash or leave the printer in a bad state.
 
-Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature wait commands) to after the first `T0` call. If you are writing a fresh macro, pick up a tool first, then heat.
+Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature wait commands) to after the first tool pick (`Tn` / `CHANGE_TOOL`). If you are writing a fresh macro, pick up a tool first, then heat.
 
 #### RRF (RepRapFirmware)
 
@@ -1817,7 +1822,7 @@ After rebooting, run `ls /dev/serial/by-id/` to confirm the Link Board is now vi
 
 If the Smart Head slams into the dock or the docked tools when you run `G28`, the most likely cause is that the homing order has not been configured. By default, Klipper homes X before Y; if the Smart Head is near the dock when homing starts, a full-speed X move can send it directly into the dock.
 
-Add a `[homing_override]` section to your `printer.cfg` that homes Y before X. See [Homing order](#homing-order-important) for the recommended config. After any crash, re-home the printer before moving on; the stepper motors may have lost steps, making the position shown in your interface unreliable.
+Include `homing.cfg` (or merge its `[homing_override]` into yours) so Y homes before X. See [Homing order](#homing-order-important). After any crash, re-home the printer before moving on; the stepper motors may have lost steps, making the position shown in your interface unreliable.
 
 ### Extruder feeding filament in the wrong direction
 
