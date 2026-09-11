@@ -199,21 +199,19 @@ They are not Bondtech products. They are hosted externally and maintained by the
 | Sovol SV08 OG & SV08 Max | 3DPrintDemon | [Printables](https://www.printables.com/model/1771164-official-indx-sovol-sv08-og-sv08-max-integrations) |
 | Voron Trident R2 | Steve — Voron team, designer of the Trident | [Printables](https://www.printables.com/model/1761163-trident-r2-bondtech-indx-mods) |
 
-### Community integrations
+### Unverified community builds
 
-INDX runs on a wide range of CoreXY printers, far more than Bondtech could ever test and support directly. What makes that possible is community members who've done the integration work on their own printer and shared what they learned. Every config in the repo started with someone doing it for the first time.
+INDX runs on a wide range of CoreXY printers, far more than Bondtech could ever test and support directly. What makes that possible is community members who've done the integration work on their own printer and shared what they learned. The printers below are known to work; what varies is whether anyone has published parts for them yet.
 
-> **What does "community" status mean?** The hardware works on that printer, but the integration guide comes from the community, not Bondtech. Some printers already have complete, verified configs on GitHub; check the repo first. Others are earlier stage. The [Bondtech Discord](https://discord.gg/XDX9jDXN6e) has channels for specific printers, which is a good place to find others running the same platform and see how far along the integration is.
+> ⚠️ **Nothing in this table has been checked by Bondtech.** We have not printed these parts, measured them, or run them on a machine here. Listing a build is not an endorsement and says nothing about whether the geometry is right. Read them the way you would read any stranger's remix: check a dock against [Dock Design](#dock-design) before printing it, since dock geometry that misses those constraints gives unreliable tool changes rather than an obvious failure. Questions about these parts belong with whoever made them, not with Bondtech.
 
-> ⚠️ **Anything linked below as unverified has not been checked by Bondtech.** We have not printed the parts, measured them, or run them on a machine here. They are listed because they look like a useful starting point and because the alternative is you finding nothing at all, not because we are vouching for them. Read them the way you would read any stranger's remix: check the geometry against [Dock Design](#dock-design) before you print a dock, and expect to verify rather than trust. Questions about those parts belong with whoever made them.
+| Printer | Build | Source |
+| ------- | ----- | ------ |
+| Voron 2.4 | Full conversion parts set: X-carriage, tool holder, XY joint, front idlers, Z bearing block with Y endstop, Z chain mount | [karasgit/INDX-for-Voron-2.4](https://github.com/karasgit/INDX-for-Voron-2.4), with a [walkthrough video](https://www.youtube.com/watch?v=topIOL-b3Gw) by Emplikac 000 |
+| RatRig V-Core | None published yet | — |
+| Custom CoreXY | None, and none expected: mounting is specific to your machine | Any CoreXY with open firmware works; see [Requirements](#requirements--preparation) |
 
-| Printer | Status | Notes |
-| ------- | ------ | ----- |
-| Voron 2.4 | Community | Unverified parts set: [karasgit/INDX-for-Voron-2.4](https://github.com/karasgit/INDX-for-Voron-2.4), with a [walkthrough video](https://www.youtube.com/watch?v=topIOL-b3Gw) by Emplikac 000 |
-| Voron Trident | Community | Trident R2 has an [officially recognized integration](#officially-recognized-integrations) |
-| RatRig V-Core | Community | |
-| Sovol | Community | SV08 OG / SV08 Max have an [officially recognized integration](#officially-recognized-integrations) |
-| Custom CoreXY | Community | Any CoreXY with open firmware; see [Requirements](#requirements--preparation) |
+The [Bondtech Discord](https://discord.gg/XDX9jDXN6e) has channels for specific printers, which is the best place to find someone running the same platform and ask how far along they got.
 
 **Your printer isn't listed?** If you've got INDX running on it, that integration belongs here. Submit a pull request on [github.com/BondtechAB/INDX](https://github.com/BondtechAB/INDX) and you'll save the next person hours of work. See [Contributing a printer integration](#contributing-a-printer-integration) for what to include.
 
