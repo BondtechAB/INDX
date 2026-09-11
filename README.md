@@ -39,7 +39,7 @@
    - [Tool Offsets](#tool-offsets)
      - [Method 1: Print and adjust](#method-1-print-and-adjust-free-no-extra-hardware)
      - [Method 2: Nudge](#method-2-nudge-automatic-requires-small-hardware)
-     - [Method 3: Nozzle camera + CAL_01/02/03](#method-3-nozzle-camera-most-precise-xy-higher-cost)
+     - [Method 3: Nozzle camera + CAL_ONE/TWO/THREE](#method-3-nozzle-camera-most-precise-xy-higher-cost)
      - [Z offset: CAL_Z](#z-offset-calibration)
    - [Temperature & Induction Settings](#temperature--induction-settings)
    - [Speed & Acceleration](#speed--acceleration)
@@ -1349,23 +1349,23 @@ Nudge is highly repeatable, typically below 0.003mm standard deviation over 10 s
 
 A nozzle-mounted or fixed camera system (e.g. [Axiscope](https://github.com/nic335/Axiscope)) lets you visually align tools with sub-micron precision. Offsets are derived from image analysis rather than physical contact.
 
-The INDX macro package includes a built-in camera calibration workflow (`CAL_01` → `CAL_02` → `CAL_03`) that automates the offset calculation once a camera is set up.
+The INDX macro package includes a built-in camera calibration workflow (`CAL_ONE` → `CAL_TWO` → `CAL_THREE`) that automates the offset calculation once a camera is set up.
 
 **Workflow:**
 
 1. Pick up T0 and jog the nozzle tip to the centre of your camera crosshair. Run:
    ```gcode
-   CAL_01_SET_CAMERA_REF
+   CAL_ONE_SET_CAMERA_REF
    ```
    This saves the current position as the reference point.
 
 2. For each additional tool, run:
    ```gcode
-   CAL_02_PREP_TOOL_CAL TOOL=1
+   CAL_TWO_PREP_TOOL_CAL TOOL=1
    ```
    The macro picks up the tool and moves it to the camera position. Re-centre the nozzle in the crosshair using the jog controls, then run:
    ```gcode
-   CAL_03_SAVE_XY_OFFSET
+   CAL_THREE_SAVE_XY_OFFSET
    ```
    The offset is calculated and saved automatically. Repeat for every additional tool.
 
@@ -1805,6 +1805,26 @@ If the Smart Head has crashed into the dock, a tool, or part of the printer fram
 Visually inspect the Smart Head for any obvious physical damage: bent parts, broken clips, or anything that looks out of position. Do not attempt to force the mechanism open or closed if it is stuck.
 
 If hardware damage is confirmed or suspected, contact Bondtech support at [bondtech.se/contact](https://www.bondtech.se/contact/) before continuing to use the system. Running with a damaged DX extruder can cause print failures and may cause further damage.
+
+### INDX has the wrong idea of which tool is loaded
+
+After a power cut mid-toolchange, a crash, or a tool that was pulled off by hand, the saved state can disagree with reality: INDX believes a tool is locked when the head is empty, or believes it is empty when a tool is still in. Symptoms are a tool change that refuses to run, a `G28 Z` that errors on the load-cell seat check, or `TOOL_STATUS` showing a tool you know is not there.
+
+Two macros exist to get out of it. Both are deliberately blunt, so read what they do before running either.
+
+```gcode
+MANUAL_TOOL_REMOVE
+```
+
+Opens the latch so you can take the tool off by hand, then records the head as open and empty. **The tool is released the moment the latch opens**, so support it with your hand first or it will drop. Use this when a tool is physically in the head and you want it out.
+
+```gcode
+MANUAL_TOOLHEAD_RESET
+```
+
+Records the head as open and empty without touching the latch. Use this when the head is *already* empty and only the saved state is wrong. It changes what INDX believes, not what the hardware is doing, so running it while a tool is still locked in leaves the two further apart than before.
+
+After either one, pick a tool up normally with `Tn` or `CHANGE_TOOL` and the state will be correct again from there. If the latch itself will not move, stop and see [DX extruder not opening or closing correctly after a crash](#dx-extruder-not-opening-or-closing-correctly-after-a-crash) rather than forcing it.
 
 ### `indxmcu` not connecting
 
