@@ -205,9 +205,11 @@ INDX runs on a wide range of CoreXY printers, far more than Bondtech could ever 
 
 > **What does "community" status mean?** The hardware works on that printer, but the integration guide comes from the community, not Bondtech. Some printers already have complete, verified configs on GitHub; check the repo first. Others are earlier stage. The [Bondtech Discord](https://discord.gg/XDX9jDXN6e) has channels for specific printers, which is a good place to find others running the same platform and see how far along the integration is.
 
+> ⚠️ **Anything linked below as unverified has not been checked by Bondtech.** We have not printed the parts, measured them, or run them on a machine here. They are listed because they look like a useful starting point and because the alternative is you finding nothing at all, not because we are vouching for them. Read them the way you would read any stranger's remix: check the geometry against [Dock Design](#dock-design) before you print a dock, and expect to verify rather than trust. Questions about those parts belong with whoever made them.
+
 | Printer | Status | Notes |
 | ------- | ------ | ----- |
-| Voron 2.4 | Community | |
+| Voron 2.4 | Community | Unverified parts set: [karasgit/INDX-for-Voron-2.4](https://github.com/karasgit/INDX-for-Voron-2.4), with a [walkthrough video](https://www.youtube.com/watch?v=topIOL-b3Gw) by Emplikac 000 |
 | Voron Trident | Community | Trident R2 has an [officially recognized integration](#officially-recognized-integrations) |
 | RatRig V-Core | Community | |
 | Sovol | Community | SV08 OG / SV08 Max have an [officially recognized integration](#officially-recognized-integrations) |
