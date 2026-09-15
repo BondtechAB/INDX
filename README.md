@@ -806,6 +806,7 @@ pid_b: 1.0
 sensor_type: indx  # Custom sensor type provided by the INDX plugin — reads temperature via the IR sensor on the induction board
 min_temp: 0
 max_temp: 350
+smooth_time: 0.3  # Match the INDX temperature report interval and avoid lag during its rapid heat-up
 
 heater_pin: indx:heater
 # Induction heating uses watermark (on/off bang-bang) control, not PID.
@@ -853,6 +854,12 @@ stepper: extruder
 cs_pin: indxmcu:encoder_cs
 spi_bus: sercom1
 ```
+
+INDX reports nozzle temperature at approximately 0.3-second intervals. Klipper's
+default one-second heater smoothing can lag substantially behind the measured
+temperature during the very fast induction heat-up, delaying the displayed
+temperature and temperature-wait completion. Keep `smooth_time: 0.3` in the
+extruder configuration so each new INDX report is reflected promptly.
 
 > ⚠️ **Do not change `rotation_distance`**
 >
