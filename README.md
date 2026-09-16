@@ -27,6 +27,7 @@
        - [Load cell probe](#load-cell-probe)
        - [Automated dock X measurement](#automated-dock-x-measurement-built-in)
        - [Homing override](#homing-order-important)
+         - [Seat check](#seat-check)
      - [RRF (RepRapFirmware)](#rrf-reprapfirmware)
    - [Initial Startup](#initial-startup)
 
@@ -986,11 +987,23 @@ The INDX macro package includes a ready-to-use `[homing_override]` in `homing.cf
 
 1. Raise to `probe_z_clearance` (set in `indx.cfg`). If Z is unknown, hop that height then un-home Z so the later probe is a real home.
 2. Home Y. `G28 X` with Y unknown homes Y first.
-3. Home X. If Y was already homed and the head is still on the dock side (`dock_dir` in `indx.cfg`), move to `clearance_y` first so X does not sweep the dock.
-4. Before Z, read the load cell. The saved tool number is not enough: it can say empty while a tool is still locked, which would crash a T0 pickup. Missing or uncalibrated cell is an error. Tune seat with `home_min_force_g` in `indx.cfg` (default 800). If nothing is seated and Z has never been homed, seat a tool by hand. If Z is already known, pick T0. If a tool is already locked and the cell agrees, home Z with that tool.
-5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre) and home Z.
+3. Move to `clearance_y` so X does not sweep the dock, then home X. Homing X crosses every dock position, so it has to run at a Y that clears the tools. A just-homed Y sits at its endstop, which is only clear of the docks on machines where the endstop is on the far side from them, so the move happens either way. The one exception is `G28 X` on a machine whose Y is already homed and parked nowhere near the docks (`dock_dir` in `indx.cfg` decides which side that is), where the move is skipped.
+4. Before Z, work out whether a tool is seated. `home_check_seat` in `indx.cfg` decides what answers that, and it is `False` by default, so `active_tool` does. If it names a tool, Z is homed with that tool. If it says `-1` and Z is already known, T0 is picked first; if Z has never been homed, seat a tool by hand. See [Seat check](#seat-check) for what turning it on buys and costs.
+5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre), home Z, then lift back to `probe_z_clearance`. `G28 Z` ends at the trigger point a fraction of a millimetre off the bed, so the lift leaves the head at a height any following move can start from.
 
-`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked and the load cell confirms it.
+`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked.
+
+#### Seat check
+
+Z homing probes with the nozzle, so it needs a tool on the head. The load cell can be asked to confirm one is there before every `G28 Z`, by setting `home_check_seat: True` in `indx.cfg`. It is off by default, and that default is deliberate.
+
+The load cell is a dependable contact detector and an undependable scale. Probing only asks it *when* force changed, which it answers well. The seat check asks it *how many grams are on the head right now*, and that number moves with the tare. A head tared with a tool already in it reads near zero with that tool still seated, and the check then refuses a homing that would have been perfectly safe.
+
+With the check off, `active_tool` answers instead. That is the same value every tool change already trusts, so the seat check is not the weak link if it is wrong. What you give up is the one place that could have caught it being wrong.
+
+With the check on, the cell and `active_tool` must agree. Either can be wrong on its own, so a disagreement in either direction stops the machine and asks rather than picking a winner: a cell that reads empty while `active_tool` names a tool would otherwise send a loaded head into another dock. T0 is fetched only when both say the head is empty. Tune the threshold with `home_min_force_g` (default 800 g), and note that a missing or uncalibrated `[load_cell_probe]` becomes a homing error rather than just a probing one.
+
+`INDX STATUS` prints the live reading on its `SEAT FORCE` line whichever way this is set, so you can see what the cell thinks without having it gate anything. If it reads near zero with a tool seated, the tare has drifted: run `CALIBRATE_LOAD_CELL` with an empty head.
 
 If you use sensorless XY homing, wrap the `G28 Y` / `G28 X` steps in your usual TMC current reduce/restore (merge into the override if you already have one).
 
