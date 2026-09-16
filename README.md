@@ -1681,7 +1681,7 @@ The STEP file is the master reference model; it contains the geometry of every p
 
 | File | Format | Description |
 | ---- | ------ | ----------- |
-| [`INDX_simplified_1.18.step`](CAD/INDX_simplified_1.18.step) | STEP | Simplified reference model of the full INDX assembly, includes all printable parts below |
+| [`INDX_simplified_1.19.step`](CAD/INDX_simplified_1.19.step) | STEP | Simplified reference model of the full INDX assembly. Includes the open nozzle front, so you can modify it and print your own |
 | [`INDX_Link_simplified_1.0.step`](CAD/INDX_Link_simplified_1.0.step) | STEP | Simplified reference model of the Link Board, for designing a mount or enclosure for it |
 
 **Printable parts (STL)**
