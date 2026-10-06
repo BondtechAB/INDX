@@ -7,23 +7,8 @@
 if global.INDX_State > -1
   abort "INDX_CLOSE_CAL: already flagged closed (global.INDX_State > -1)."
 
-var cet = heat.coldExtrudeTemperature
-var crt = heat.coldRetractTemperature
-if var.cet > 0
-  M302 P1
-
-; Variables from BONDTECH
-var full_lock_e   = 11.0
-var seat_e        = 10.0
-var seat_feedrate = 300
-
-M83
-M906 E600
-G1 E{var.full_lock_e} F1500
-G1 E{var.seat_e} F{var.seat_feedrate}    ; slow seat to full locking force
-M400
-
-if var.cet > 0
-  M302 P0 S{var.cet} R{var.crt}
+; lock, then a slow 1 mm seat; more than 1 mm made the clamp force unrepeatable (motor skips)
+M98 P"INDX_LATCH_MOVE.g" E11.0 F1500
+M98 P"INDX_LATCH_MOVE.g" E1.0 F300
 
 set global.INDX_State = 99

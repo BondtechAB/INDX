@@ -8,9 +8,7 @@
 ; M291 modes used: S3 = OK/Cancel (blocking), S2 = OK (blocking). Cancel on a
 ; confirmation aborts; Cancel on the save step just skips saving.
 ;
-; INDX_LC_CAL checks the computed scale against global.INDX_LC_scale_limits. If it is out of
-; range that macro aborts, which ends this one too, leaving the previous scale untouched and
-; the cell marked uncalibrated - so a bad calibration is never saved or used.
+; A scale outside INDX_LC_scale_limits aborts INDX_LC_CAL and this macro; nothing is saved.
 
 if !exists(global.INDX_State) || !exists(global.INDX_LC_scale) || !exists(global.INDX_LC_offset)
   abort "INDX_LC_CALIBRATE: INDX globals missing - is INDX_variables.g loaded from config.g?"
@@ -33,19 +31,29 @@ if result != 0
   abort "INDX_LC_CALIBRATE: cancelled by user."
 if global.INDX_State != -1
   M98 P"INDX_OPEN.g"
+; the head is empty, so no tool may stay selected
+if state.currentTool >= 0
+  M568 P{state.currentTool} A0 R0
+  T-1 P0
 M98 P"INDX_TARE.g"
 
 ; 4. manual step: seat a tool by hand
 M291 P"Seat a passive tool on the Smart Head BY HAND, pushed fully home. OK when seated." R"INDX Load Cell" S3
 if result != 0
   abort "INDX_LC_CALIBRATE: cancelled - latch left open, no tool locked."
+M291 P{"Which tool was seated? 0 to " ^ (#global.INDX_tool_x - 1) ^ ", or -1 for a tool that has no dock."} R"INDX Load Cell" S5 L-1 H{#global.INDX_tool_x - 1} F-1
+var seated = input
 
 ; 5. lock + seat the calibration force, then compute + apply the scale (M558 V)
 M98 P"INDX_CLOSE_CAL.g"
+; record and select the tool now locked on the head; a tool with no dock stays 99 (unknown)
+if var.seated >= 0
+  set global.INDX_State = var.seated
+  T{var.seated} P0
+  M568 P{var.seated} A0
 M98 P"INDX_LC_CAL.g"
 
-; 6. confirm the force sign. INDX_LC_CAL already sets it for the normal head build, so the
-; expected answer is Yes; the inversion below is only for a head wired the other way round.
+; 6. confirm the force sign; the inversion is for a head built the other way round
 M291 P{"Scale applied: M558 V = " ^ global.INDX_LC_scale ^ " g/count. Press the nozzle UP by hand. The probe force in DWC should go POSITIVE. Does it?"} R"INDX Load Cell" S4 K{"Yes","No"}
 if input = 1
   ; unexpected: force went the wrong way - invert the scale sign, re-apply, and re-check
@@ -67,9 +75,7 @@ else
   if var.dbg > 0
     echo "INDX_LC_CALIBRATE: not saved (INDX_WRITE_STATE skipped)."
 
-; 8. re-zero the cell at the current resting load: calibration sets the grams-per-count ratio,
-; but the zero point still dates from when the probe was created, so the reported force is
-; offset. The tool is locked and at rest here, which is the right reference.
+; 8. re-zero the cell at the current resting load
 M98 P"INDX_LC_RETARE.g"
 
 ; 9. done - tool stays loaded for Z homing
