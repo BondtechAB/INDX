@@ -19,6 +19,7 @@ if heat.heaters[1].state = "active" || heat.heaters[1].state = "standby"
 M98 P"INDX_LATCH_MOVE.g" E-11.0 F1500
 
 set global.INDX_State = -1
+M98 P"INDX_WRITE_STATE.g"
 
 ; the head no longer holds the selected tool, so deselect it (standby 0 so nothing heats)
 if state.currentTool >= 0

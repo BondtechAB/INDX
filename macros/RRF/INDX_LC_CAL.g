@@ -21,7 +21,7 @@ if global.INDX_State = -1
 var grams = exists(param.S) ? param.S : global.INDX_LC_locking_force
 if var.grams <= 0
   abort "INDX_LC_CAL: locking force must be > 0 g."
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 ; INDX_TARE must have run since the last reboot; the unloaded reading is not saved
 if global.INDX_LC_offset = 0

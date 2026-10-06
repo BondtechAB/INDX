@@ -5,7 +5,7 @@
 if sensors.probes[0].type != 12
   abort "INDX_LC_RETARE: probe 0 is not a load cell probe (M558 P12) - check config.g."
 
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 M558.4 K0
 

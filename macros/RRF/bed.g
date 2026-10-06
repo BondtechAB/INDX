@@ -4,10 +4,10 @@
 
 if move.axes[2].homed = false
   abort "bed.g: home Z first (homez) - the points must share one Z frame."
-if global.INDX_State = -1
-  abort "bed.g: no tool loaded - the nozzle probes the bed."
 if global.INDX_LC_calibrated = false
   abort "bed.g: load cell not calibrated (run INDX_LC_CALIBRATE)."
+; the nozzle probes the bed, so a tool must be on the head
+M98 P"INDX_TOOL_CHECK.g" S"bed.g"
 
 ; probe points, near each leadscrew
 var px = {-115, 0, 104}
@@ -20,7 +20,7 @@ while iterations < var.np
   if var.hx < move.axes[0].min || var.hx > move.axes[0].max || var.hy < move.axes[1].min || var.hy > move.axes[1].max
     abort {"bed.g: levelling point " ^ iterations ^ " (X" ^ var.px[iterations] ^ " Y" ^ var.py[iterations] ^ ") is outside the axis limits. Move it, keeping it near its leadscrew in M671."}
 
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 var tol     = 0.05                  ; mm; stop once the measured corner deviation is below this
 var maxpass = 5                     ; safety cap on levelling passes
 var i = 0

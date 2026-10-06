@@ -11,3 +11,4 @@ if global.INDX_State > -1
 M98 P"INDX_LATCH_MOVE.g" E11.0 F1500
 
 set global.INDX_State = 99   ; closed; tool identity set by the tool-change macro later
+M98 P"INDX_WRITE_STATE.g"

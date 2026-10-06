@@ -1,6 +1,7 @@
 ; INDX_variables.g - INDX global variables
 ; Called at the end of config.g. Can be run again at any time to apply edits: each variable is
 ; declared if missing, otherwise set. Values saved by INDX_WRITE_STATE are restored at the end.
+; INDX_State and INDX_TC_log keep their live values when this file is run again.
 
 ; --- Tool docks (machine coordinates) ---
 ; X centre of each dock; index = tool number
@@ -124,10 +125,10 @@ else
 
 ; --- Tool change state, used by the tool-change macros ---
 ; INDX_State: -1 = latch open, no tool; 0..n = that tool locked on; 99 = latch closed, tool unknown
-if !exists(global.INDX_State)
+; set from indx-state.g at startup; when this file is run again the live value is kept
+var startup = !exists(global.INDX_State)
+if var.startup
   global INDX_State = -1
-else
-  set global.INDX_State = -1
 if !exists(global.INDX_TC_count)
   global INDX_TC_count = 0            ; tool changes since boot, written to the check log
 else
@@ -245,14 +246,17 @@ else
   set global.INDX_probe_y = 0
 
 ; 1 = macros echo progress, 0 = quiet; the saved value is restored below
-if !exists(global.INDX_LC_DEBUG)
-  global INDX_LC_DEBUG = 0
+if !exists(global.INDX_DEBUG)
+  global INDX_DEBUG = 0
 else
-  set global.INDX_LC_DEBUG = 0
+  set global.INDX_DEBUG = 0
 
-; restore the values saved by INDX_WRITE_STATE
+; restore the values saved by INDX_WRITE_STATE; INDX_State only at startup
 if fileexists("0:/sys/indx-state.g")
+  var live_state = global.INDX_State
   M98 P"0:/sys/indx-state.g"
+  if !var.startup
+    set global.INDX_State = var.live_state
 
 ; apply the scale, trigger force and preload window to probe K0; G31 offsets stay as set in config.g
 if global.INDX_LC_calibrated

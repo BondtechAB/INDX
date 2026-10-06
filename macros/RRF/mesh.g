@@ -25,12 +25,12 @@ if var.probe = 0 && sensors.probes[0].type != 12
   abort {"mesh.g: probe K0 is type " ^ sensors.probes[0].type ^ ", expected 12 (load cell)."}
 if move.axes[0].homed = false || move.axes[1].homed = false
   abort "mesh.g: home X and Y first (G28 X Y)."
-if global.INDX_State = -1
-  abort "mesh.g: no tool loaded - the Z datum is set by nozzle contact."
 if global.INDX_LC_calibrated = false
   abort "mesh.g: load cell not calibrated (run INDX_LC_CALIBRATE)."
+; the Z datum is set by nozzle contact, so a tool must be on the head
+M98 P"INDX_TOOL_CHECK.g" S"mesh.g"
 
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 ; --- resolve the grid: the shared area, adjusted for this probe, then any X/Y/I/J parameters ---
 var x0 = global.INDX_mesh_min[0]

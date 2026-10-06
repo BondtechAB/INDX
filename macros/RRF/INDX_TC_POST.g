@@ -101,5 +101,5 @@ if var.faulted
 if global.INDX_TC_pick_heat_ok = 1 && global.INDX_TC_in_active > 0
   M116 P{var.t}
 
-if global.INDX_LC_DEBUG > 0
+if global.INDX_DEBUG > 0
   echo {"INDX_TC_POST: T" ^ var.t ^ " locked on, target " ^ global.INDX_TC_in_active ^ "C"}

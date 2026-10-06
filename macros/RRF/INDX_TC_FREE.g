@@ -116,5 +116,5 @@ if var.temp_before >= global.INDX_TC_drop_temp_min
   set global.INDX_TC_drop_temp_ok = var.excess >= global.INDX_TC_drop_temp_fall ? 1 : 0
   M98 P"INDX_TC_REPORT.g" E"drop_temp" T{var.t} B{var.temp_before} A{var.temp_after} D{var.excess} X{var.cooling} K{global.INDX_TC_drop_temp_ok}
 
-if global.INDX_LC_DEBUG > 0
+if global.INDX_DEBUG > 0
   echo {"INDX_TC_FREE: T" ^ var.t ^ " parked at X" ^ var.dockx ^ " Y" ^ var.docky}

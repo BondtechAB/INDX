@@ -77,5 +77,5 @@ M400
 if var.lim
   M564 S1
 
-if global.INDX_LC_DEBUG > 0
+if global.INDX_DEBUG > 0
   echo {"INDX_TC_PRE: at the T" ^ var.t ^ " trigger line, X" ^ var.dockx ^ " Y" ^ var.trig}

@@ -12,7 +12,7 @@
 
 if !exists(global.INDX_State) || !exists(global.INDX_LC_scale) || !exists(global.INDX_LC_offset)
   abort "INDX_LC_CALIBRATE: INDX globals missing - is INDX_variables.g loaded from config.g?"
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 ; 1. intro + safety confirmation
 M291 P"Calibrate INDX load cell. Ensure NO tool is mounted. X/Y home if needed. OK to start?" R"INDX Load Cell" S3

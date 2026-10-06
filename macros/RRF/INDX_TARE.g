@@ -15,7 +15,7 @@ if global.INDX_State != -1
 var samples = global.INDX_LC_samples
 if var.samples < 1
   set var.samples = 1
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 ; --- settle, then average several latched baselines ---
 G4 P500

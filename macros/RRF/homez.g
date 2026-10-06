@@ -9,12 +9,12 @@
 
 if move.axes[0].homed = false || move.axes[1].homed = false
   abort "homez: home X and Y first (G28 X Y)."
-if global.INDX_State = -1
-  abort "homez: no tool loaded - the nozzle probes the bed."
 if global.INDX_LC_calibrated = false
   abort "homez: load cell not calibrated (run INDX_LC_CALIBRATE)."
+; the nozzle probes the bed, so a tool must be on the head
+M98 P"INDX_TOOL_CHECK.g" S"homez"
 
-var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
+var dbg = exists(global.INDX_DEBUG) ? global.INDX_DEBUG : 0
 
 ; clear the height map so the datum is set on the bed, not on the compensated surface
 G29 S2
