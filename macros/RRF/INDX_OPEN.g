@@ -6,20 +6,21 @@
 if global.INDX_State = -1
   abort "INDX_OPEN: already flagged open (global.INDX_State = -1)."
 
-var cet = heat.coldExtrudeTemperature
-var crt = heat.coldRetractTemperature
-if var.cet > 0
-  M302 P1
+; heater off before opening the latch (all INDX tools share heater H1)
+if heat.heaters[1].state = "active" || heat.heaters[1].state = "standby"
+  if state.currentTool >= 0
+    M568 P{state.currentTool} A0
+  else
+    while iterations < #global.INDX_tool_x
+      M568 P{iterations} A0
+  echo "INDX_OPEN: tool heater switched off before opening the latch."
 
-; Variables from BONDTECH
-var full_open_e = -11.0
-
-M83
-M906 E600
-G1 E{var.full_open_e} F1500
-M400
-
-if var.cet > 0
-  M302 P0 S{var.cet} R{var.crt}
+; latch value from Bondtech
+M98 P"INDX_LATCH_MOVE.g" E-11.0 F1500
 
 set global.INDX_State = -1
+
+; the head no longer holds the selected tool, so deselect it (standby 0 so nothing heats)
+if state.currentTool >= 0
+  M568 P{state.currentTool} A0 R0
+  T-1 P0

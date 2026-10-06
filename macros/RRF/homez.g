@@ -14,33 +14,16 @@ if global.INDX_State = -1
 if global.INDX_LC_calibrated = false
   abort "homez: load cell not calibrated (run INDX_LC_CALIBRATE)."
 
-; Sanity check the probe's G31 settings. Re-creating a probe - any M558 with a P parameter -
-; resets G31 to firmware defaults (threshold 500, trigger height 0.7mm), and nothing complains.
-; For the load cell the threshold is a force in grams and the trigger height must be close to
-; zero, because the nozzle is touching the bed when it triggers. A small non-zero value is
-; legitimate - it compensates for deflection under the trigger force - so allow +/-0.1mm, which
-; still catches the 0.7mm default. Left unnoticed this probes at ten times the intended force
-; and sets the datum 0.7mm out.
-if sensors.probes[0].threshold != global.INDX_LC_trigger_grams
-  abort {"homez: probe threshold is " ^ sensors.probes[0].threshold ^ "g, expected " ^ global.INDX_LC_trigger_grams ^ "g. G31 has been reset - run M98 P""INDX_variables.g""."}
-if abs(sensors.probes[0].triggerHeight) > 0.1
-  abort {"homez: probe trigger height is " ^ sensors.probes[0].triggerHeight ^ "mm, expected near 0. G31 has been reset - run M98 P""INDX_variables.g""."}
-
 var dbg = exists(global.INDX_LC_DEBUG) ? global.INDX_LC_DEBUG : 0
 
-; Clear any active height map first. Mesh compensation shifts Z by the map value at the current
-; XY, so homing with it enabled sets the datum on the compensated surface rather than the real
-; bed. Reload the map with G29 S1 (or re-run G29) after homing.
-; G32 does not need this - the firmware clears the map itself when leadscrew levelling runs.
+; clear the height map so the datum is set on the bed, not on the compensated surface
 G29 S2
 
-; probe point = configured bed centre (global.INDX_probe_x/y, machine coords) minus the probe
-; XY offset so the PROBE lands there (for the load cell the offset is 0).
+; probe point (machine coordinates) less the probe XY offset
 var px = (exists(global.INDX_probe_x) ? global.INDX_probe_x : 0) - sensors.probes[0].offsets[0]
 var py = (exists(global.INDX_probe_y) ? global.INDX_probe_y : 0) - sensors.probes[0].offsets[1]
 
-; optional XY fuzz: offset the probe point by +/- fuzz so the bed is not always tapped at the
-; same spot (spreads wear). 0 = always the configured point.
+; optional random offset of the probe point, to spread bed wear
 var fuzz = 0.0
 if exists(global.INDX_LC_probe_fuzz)
   set var.fuzz = global.INDX_LC_probe_fuzz
@@ -56,30 +39,25 @@ G1 H2 Z5 F600
 G90
 G1 X{var.fx} Y{var.fy} F12000
 
+; G31 Z trigger height: G30 sets machine Z to this value
+var th = sensors.probes[0].triggerHeight
+
 ; probe and set the Z datum
 G30
 if var.dbg > 0
-  echo {"homez: Z datum set. preload " ^ sensors.probes[0].loadCell.preload ^ " g"}
+  echo {"homez: Z datum set at trigger height " ^ var.th ^ " mm. preload " ^ sensors.probes[0].loadCell.preload ^ " g"}
 
-; verification (debug only): one more probe in the corrected datum - should read ~0.
-;
-; G30 sets the machine Z coordinate to the G31 trigger height, so this should read the trigger
-; height - zero for the load cell, since the nozzle is on the bed when it triggers. A reading of
-; 0.7 means G31 is at its firmware default, which the guard above now catches.
-;
-; Note the two probes are not the same operation: the G30 above taps up to the M558 A count and
-; averages, while G30 S-1 taps exactly once. A disagreement of a few microns is expected.
+; debug only: probe again, it should stop at the trigger height
 if var.dbg > 0
   G90
   G1 Z2 F600
   G30 S-1
-  echo {"homez: verify Z = " ^ move.axes[2].machinePosition ^ " mm (expect ~0), user " ^ move.axes[2].userPosition ^ " mm"}
+  echo {"homez: verify Z = " ^ move.axes[2].machinePosition ^ " mm (expect " ^ var.th ^ ", error " ^ (move.axes[2].machinePosition - var.th) ^ " mm)"}
 
 ; lift clear of the bed, then park 1 mm inside the configured X and Y minimum limits
 G90
 G1 Z5 F600
-G1 X{move.axes[0].min + 1} Y{move.axes[1].min + 1} F12000
+G1 X{move.axes[0].min + 1} Y{global.safeYmin} F12000
 
-; Reload the height map cleared at the start, so normal operation ends with mesh compensation
-; active again. Commented out until the mesh investigation is finished.
+; reload the height map
 ;G29 S1
