@@ -2,7 +2,7 @@
 ;
 ; Diagnostic macro. Probes the same spot repeatedly at each feed rate in var.feeds and reports
 ; the scatter, so you can choose the F value for the M558 in config.g. Results are always
-; echoed, whatever INDX_LC_DEBUG is set to.
+; echoed, whatever INDX_DEBUG is set to.
 ;
 ; This is the one macro that changes the probe configuration, because varying the feed rate is
 ; the whole point. It reads the current settings from the object model first and puts them back
