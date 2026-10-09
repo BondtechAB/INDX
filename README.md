@@ -1063,6 +1063,12 @@ If you are migrating from a single-toolhead printer, your existing `PRINT_START`
 
 Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature wait commands) to after the first tool pick (`Tn` / `CHANGE_TOOL`). If you are writing a fresh macro, pick up a tool first, then heat.
 
+INDX's own `M104` and `M109` (in `indx-tc-macros.cfg`) enforce this: with no tool on the head they don't heat and say so in the console, a tool listed in `no_heat_tools` is never heated, and `M104 T<n>` / `M109 T<n>` for a tool that is not on the head is ignored instead of stopping the print (slicers send these for parked tools). If your config defines its own `M104` or `M109`, only the last one loaded is used, so merge these rules into yours.
+
+**Display alerts**
+
+Warnings that are dangerous to ignore (`! ...`, for example a failed homing or `clearance_y` too close to a dock) and moments when you need to act (`> ...`, for example docks not calibrated yet) are also shown with `M117` on the printer display. The console keeps the full message. An INDX alert clears itself after the next successful `G28`, and never clears your own `M117` text.
+
 #### RRF (RepRapFirmware)
 
 Configure the Bondtech INDX PCB in RRF following the [Duet INDX Toolboard documentation](https://docs.duet3d.com/en/Duet3D_hardware/Duet_3_family/INDX_Toolboard).
