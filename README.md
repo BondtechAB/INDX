@@ -995,11 +995,11 @@ The INDX macro package includes a ready-to-use `[homing_override]` in `homing.cf
 
 1. Raise to `probe_z_clearance` (set in `indx.cfg`). If Z is unknown, hop that height then un-home Z so the later probe is a real home.
 2. Home Y. `G28 X` with Y unknown homes Y first.
-3. Move to `clearance_y` so X does not sweep the dock, then home X. Homing X crosses every dock position, so it has to run at a Y that clears the tools. A just-homed Y sits at its endstop, which is only clear of the docks on machines where the endstop is on the far side from them, so the move happens either way. The one exception is `G28 X` on a machine whose Y is already homed and parked nowhere near the docks (`dock_dir` in `indx.cfg` decides which side that is), where the move is skipped.
-4. Before Z, work out whether a tool is seated. `home_check_seat` in `indx.cfg` decides what answers that, and it is `False` by default, so `active_tool` does. If it names a tool, Z is homed with that tool. If it says `-1` and Z is already known, T0 is picked first; if Z has never been homed, seat a tool by hand. See [Seat check](#seat-check) for what turning it on buys and costs.
+3. Home X at a Y that clears the docks. Homing X crosses every dock position. If the head's Y (the Y endstop after a fresh Y home, or the current Y if Y was already homed) is on the dock side of `clearance_y`, it moves to `clearance_y` first; if it is already on the far side, for example a Y endstop opposite the docks, X homes where it stands. An unknown Y always moves. `dock_dir` in `indx.cfg` decides which side the docks are on.
+4. Make T0 the tool on the head. `G28 Z` always homes on T0, because the per-tool Z offsets are stored as differences from T0. With T0 locked there is no dock trip; another tool is parked and T0 fetched; an empty head fetches T0, also when Z has never been homed (step 1 already lifted the gantry clear of the bed). Until the docks are measured (`docks_calibrated: False`), G28 refuses that trip: seat T0 by hand with `MANUAL_TOOL_SEAT TOOL=0` first. `home_check_seat` in `indx.cfg` decides how INDX knows what is on the head: `False` (default) trusts `active_tool`, `True` also requires the load cell to agree. See [Seat check](#seat-check) for what turning it on buys and costs.
 5. Move to the probe XY (`probe_x` / `probe_y`, or bed centre), home Z, then lift back to `probe_z_clearance`. `G28 Z` ends at the trigger point a fraction of a millimetre off the bed, so the lift leaves the head at a height any following move can start from.
 
-`CAL_Z` still stores per-tool Z offsets relative to T0. Homing no longer requires T0 when another tool is already locked.
+`CAL_Z` stores per-tool Z offsets relative to T0, which is why Z always homes on T0.
 
 #### Seat check
 
@@ -1027,7 +1027,7 @@ Review your `PRINT_START` macro and move all `M104`/`M109` (and any temperature 
 
 Configure the Bondtech INDX PCB in RRF following the [Duet INDX Toolboard documentation](https://docs.duet3d.com/en/Duet3D_hardware/Duet_3_family/INDX_Toolboard).
 
-The RRF tool-change and calibration macros are in [`macros/RRF/`](macros/RRF/) in this repository. They are the RRF counterpart to the Klipper `.cfg` files described above, covering the latch (`INDX_OPEN.g`, `INDX_CLOSE.g`, `INDX_LATCH_ENGAGE.g`), load-cell calibration and taring (`INDX_LC_CALIBRATE.g`, `INDX_LC_CAL.g`, `INDX_LC_RETARE.g`, `INDX_TARE.g`, `INDX_LC_SPEED_SWEEP.g`), state persistence (`INDX_WRITE_STATE.g`), and Z homing, bed levelling and meshing against the load cell (`homez.g`, `bed.g`, `mesh.g`).
+The RRF tool-change and calibration macros are in [`macros/RRF/`](macros/RRF/) in this repository. They are the RRF counterpart to the Klipper `.cfg` files described above, covering tool changes (`tpreN.g`, `tpostN.g`, `tfreeN.g` for each tool, calling `INDX_TC_PRE.g`, `INDX_TC_POST.g`, `INDX_TC_FREE.g`, with `INDX_UNLOCK_DANCE.g` releasing a docked tool and `INDX_TC_REPORT.g` logging each check), the latch (`INDX_OPEN.g`, `INDX_CLOSE.g`, `INDX_CLOSE_CAL.g`, `INDX_LATCH_ENGAGE.g`, `INDX_LATCH_MOVE.g`), load-cell calibration, taring and readings (`INDX_LC_CALIBRATE.g`, `INDX_LC_CAL.g`, `INDX_LC_RETARE.g`, `INDX_TARE.g`, `INDX_LC_RAW.g`, `INDX_LC_SPEED_SWEEP.g`), the check that a tool is on before the nozzle probes (`INDX_TOOL_CHECK.g`), state persistence (`INDX_WRITE_STATE.g`), Z homing, bed levelling and meshing against the load cell (`homez.g`, `bed.g`, `mesh.g`), and pause, stop and power-loss resume (`pause.g`, `stop.g`, `resurrect-prologue.g`). `INDX_TC_TEST.g` is a test macro that cycles every tool and checks each drop-off and pickup; it goes in `0:/macros`.
 
 Settings live in [`INDX_variables.g`](macros/RRF/INDX_variables.g), which is the RRF equivalent of `indx.cfg` and the file to edit. Call it from `config.g` with `M98 P"INDX_variables.g"` **after** the hardware configuration, including after the `M558`/`G31` that create the load-cell probe.
 
@@ -1345,6 +1345,8 @@ If the pick-up or deposit fails, do not retry at speed. Go back to the dock posi
 ### Tool Offsets
 
 Each passive tool has a slightly different position relative to the Smart Head pickup point. Tool offsets must be calibrated so prints align correctly when switching tools. There are several ways to do this, ranging from free manual methods to precise hardware-assisted ones.
+
+To start over, `RESET_TOOL_OFFSETS` zeroes the X/Y/Z offset of every tool. It prints the old values first, so you can copy them back from the console if needed. The global Z offset is left alone (`RESET_GLOBAL_Z` handles that).
 
 ---
 
@@ -1849,7 +1851,15 @@ MANUAL_TOOLHEAD_RESET
 
 Records the head as open and empty without touching the latch. Use this when the head is *already* empty and only the saved state is wrong. It changes what INDX believes, not what the hardware is doing, so running it while a tool is still locked in leaves the two further apart than before.
 
-After either one, pick a tool up normally with `Tn` or `CHANGE_TOOL` and the state will be correct again from there. If the latch itself will not move, stop and see [DX extruder not opening or closing correctly after a crash](#dx-extruder-not-opening-or-closing-correctly-after-a-crash) rather than forcing it.
+The opposite case, a tool on the head that INDX does not know about (you put it there by hand, or the saved state says empty):
+
+```gcode
+MANUAL_TOOL_SEAT TOOL=n
+```
+
+Locks the latch onto the tool and records it as tool `n`. Hold the tool in place on the Smart Head while it locks. This is also how the first tool gets on before the docks are measured, and how T0 gets on before the first `G28`.
+
+After any of these, pick a tool up normally with `Tn` or `CHANGE_TOOL` and the state will be correct again from there. If the latch itself will not move, stop and see [DX extruder not opening or closing correctly after a crash](#dx-extruder-not-opening-or-closing-correctly-after-a-crash) rather than forcing it.
 
 ### `indxmcu` not connecting
 
