@@ -1251,6 +1251,8 @@ The trigger line (`dock_y - dock_dir * trigger_offset`) is derived automatically
 
 For a rear dock, set `variable_dock_dir: 1` and put `clearance_y` on the bed side of the tools.
 
+`clearance_y` must be at least 26 mm from the most protruding dock, on the side away from the docks (a tool on the head needs 25 mm, plus 1 mm margin). With front docks that means the highest `t{n}_dock_y` + 26 or more; the default 0.0 fits the default docks at -26. G28, `CHANGE_TOOL` and `PARK_TOOL` refuse to run otherwise and name the dock. Check it again after re-measuring a dock.
+
 > ⚠️ **Take this slow.** Moving the Smart Head into the dock area without verified coordinates is one of the most crash-prone steps in the entire INDX setup. A misaligned approach at speed can damage the Smart Head, the passive tools, or the dock itself.
 >
 > - **Always use the smallest jog increments available** (0.1 mm or less) when approaching a tool
