@@ -1069,6 +1069,17 @@ INDX's own `M104` and `M109` (in `indx-tc-macros.cfg`) enforce this: with no too
 
 Warnings that are dangerous to ignore (`! ...`, for example a failed homing or `clearance_y` too close to a dock) and moments when you need to act (`> ...`, for example docks not calibrated yet) are also shown with `M117` on the printer display. The console keeps the full message. An INDX alert clears itself after the next successful `G28`, and never clears your own `M117` text.
 
+#### Pickup and park checks
+
+INDX checks every pickup and every park with the load cell. This is on by default (`seat_check_enabled: True` in `indx.cfg`) and is separate from the homing [seat check](#seat-check) above. Each check compares two readings taken standing still a few seconds apart, so the tare and the load cell's drift with temperature do not affect it.
+
+- **Pickup.** The head reads the load cell at the trigger line with the head empty, picks up the tool, and reads it again. A seated tool adds its latch spring preload, so the two readings must differ by at least `seat_min_force_g` (default 800 g). If they don't, the console says so, X and Y are homed again, and the tool is parked and picked up once more. If the second try fails too, the heater is turned off and no tool is recorded. During a print, the print pauses, with nothing moved or retracted: put the tool back in its dock and leave the head empty (`MANUAL_TOOL_REMOVE` opens the latch), run the `CHANGE_TOOL` command the console gives you, then `RESUME`. Outside a print, and during the T0 fetch of a `G28`, INDX stops with an error.
+- **Park.** The head reads the load cell with the tool still seated, parks it, and reads it again after leaving the dock. The readings must differ by at least `park_min_change_g` (default 500 g). If they don't, the tool is probably still on the head: INDX stops with an error before driving anywhere else, turns the heater off, and keeps the tool recorded as on the head. Check the head. If the heater also reported a model divergence, a blob from a detached print may be stuck on the nozzle.
+
+Successful pickups print the reading in the console, for example `T1 seated: load cell -1650 g against the empty head`, which is useful when tuning `seat_min_force_g`. A failed check also shows a short alert on the printer display.
+
+Without a calibrated load cell the checks are skipped, with one line in the console after each restart. To turn them off, set `variable_seat_check_enabled: False` in `indx.cfg`. Tool changes then work as they did before the checks existed. If you keep your own `indx.cfg`, the checks are on with the defaults above until you add these settings.
+
 #### RRF (RepRapFirmware)
 
 Configure the Bondtech INDX PCB in RRF following the [Duet INDX Toolboard documentation](https://docs.duet3d.com/en/Duet3D_hardware/Duet_3_family/INDX_Toolboard).
