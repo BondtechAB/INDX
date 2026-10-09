@@ -1233,7 +1233,7 @@ SAVE_CONFIG
 
 Prefer the console? Run `LOAD_CELL_CALIBRATE`, then `TARE` with no tool, seat an **empty** tool and lock the latch, then `CALIBRATE GRAMS=1600`, `ACCEPT`, unlock the latch, and `SAVE_CONFIG`.
 
-Restart, then home the printer (`G28`) — Z now probes with the load cell.
+Restart. Then put T0 on the head by hand and run `MANUAL_TOOL_SEAT TOOL=0` before you home with `G28`. Until the dock positions are calibrated (`docks_calibrated: False` in `indx.cfg`), G28 will not fetch T0 from its dock, because the dock positions in a new `indx.cfg` are placeholders. Z now probes with the load cell.
 
 ### Dock Position Calibration
 
@@ -1318,6 +1318,8 @@ Home the printer, jog the Smart Head to the dock X for each tool, and note the X
 #### First tool change test
 
 Once you have calibrated the dock position for at least one tool, do a controlled first pick-up to confirm it works before setting up the full multi-tool configuration.
+
+First set `variable_docks_calibrated: True` in `indx.cfg` and `RESTART`. Until then INDX refuses tool changes and parking, so a dock position that was never measured can't be driven into.
 
 > ⚠️ **Take this slow.** Use the smallest jog increments and keep your hand near the emergency stop throughout. If anything looks wrong, stop immediately.
 
