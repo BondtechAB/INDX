@@ -41,10 +41,10 @@ M568 P{var.t} A0 R0
 var temp_off = heat.heaters[1].current
 var time_off = state.upTime + state.msUpTime / 1000
 
-; Z hop
+; Z hop; the park starts the T command, so the height saved here replaces any earlier one
+set global.INDX_TC_restore_z = -1
 if move.axes[2].homed && global.INDX_z_hop > 0
-  if global.INDX_TC_restore_z < 0
-    set global.INDX_TC_restore_z = move.axes[2].machinePosition
+  set global.INDX_TC_restore_z = move.axes[2].machinePosition
   G53 G1 Z{move.axes[2].machinePosition + global.INDX_z_hop} F900
   M400
 
@@ -115,6 +115,10 @@ if var.temp_before >= global.INDX_TC_drop_temp_min
   var excess = var.temp_before - var.temp_after - var.cooling
   set global.INDX_TC_drop_temp_ok = var.excess >= global.INDX_TC_drop_temp_fall ? 1 : 0
   M98 P"INDX_TC_REPORT.g" E"drop_temp" T{var.t} B{var.temp_before} A{var.temp_after} D{var.excess} X{var.cooling} K{global.INDX_TC_drop_temp_ok}
+
+; park only (T-1): no pickup follows to restore Z, so Z stays raised and the saved height is cleared
+if move.motionSystems[0].nextTool < 0
+  set global.INDX_TC_restore_z = -1
 
 if global.INDX_DEBUG > 0
   echo {"INDX_TC_FREE: T" ^ var.t ^ " parked at X" ^ var.dockx ^ " Y" ^ var.docky}

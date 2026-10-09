@@ -40,6 +40,10 @@ set global.INDX_TC_pick_heat_ok = -1
 set global.INDX_TC_in_active = tools[var.t].active[0]
 M568 P{var.t} A0 S0 R0
 
+; a Z height saved by an earlier park is only valid within the same T command
+if move.motionSystems[0].previousTool < 0
+  set global.INDX_TC_restore_z = -1
+
 ; Z hop, only when no park ran first
 if move.axes[2].homed && global.INDX_z_hop > 0 && global.INDX_TC_restore_z < 0
   set global.INDX_TC_restore_z = move.axes[2].machinePosition
