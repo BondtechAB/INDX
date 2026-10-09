@@ -1262,7 +1262,7 @@ For a rear dock, set `variable_dock_dir: 1` and put `clearance_y` on the bed sid
 
 #### Finding dock_y (Y: fully seated position)
 
-With the Smart Head holding the tool, carefully jog in Y in small increments until the tool is fully seated in the dock. When it feels fully engaged, run:
+Put the tool on the Smart Head by hand and run `MANUAL_TOOL_SEAT TOOL=n` (tool changes are refused until `docks_calibrated` is True). With the Smart Head holding the tool, carefully jog in Y in small increments until the tool is fully seated in the dock. When it feels fully engaged, run:
 
 ```gcode
 CAL_SET_DOCK_Y
@@ -1297,7 +1297,7 @@ Measures the absolute X position without needing a prior home, using the plugin'
    variable_t0_x: 0.000   # from CALIBRATE_DOCK_X output
    ```
 4. For each additional tool: `M84`, slide to the dock, run `CALIBRATE_DOCK_X TOOL=N`. No `FIRMWARE_RESTART` needed between tools.
-5. Once all tools are recorded, `RESTART` to apply, then `G28` to restore normal machine coordinates.
+5. Once all tools are recorded, `RESTART` to apply, then `G28` to restore normal machine coordinates. If `docks_calibrated` is still False, seat T0 by hand (`MANUAL_TOOL_SEAT TOOL=0`) before this `G28`, or set `docks_calibrated: True` first if every dock is now measured.
 
 **Option B: `READ_DOCK_POSITION` (if already homed)**
 
