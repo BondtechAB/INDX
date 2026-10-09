@@ -1270,7 +1270,11 @@ Start with **no tool on the Smart Head** and run:
 CALIBRATE_LOAD_CELL
 ```
 
-This homes X and Y, opens the latch (and records soft-state Open), and tares the empty head. Now **seat a passive tool on the Smart Head by hand** — the tool **must be empty** (no filament in the extruder gears) — then calibrate against the known locking force (default 1600 g). `CALIBRATE_LOAD_CELL_APPLY` locks, samples, then unlocks again so you can remove the tool by hand.
+This homes X and Y, opens the latch (and records soft-state Open), and tares the empty head. X and Y are not homed again if they already are, and an open latch is not opened again.
+
+`CALIBRATE_LOAD_CELL` refuses to run when `active_tool` says a tool is on the head, or when an earlier calibration exists and the load cell reads a seated tool. Run `MANUAL_TOOL_REMOVE` and lift the tool off, or put it in its dock, then run it again. On a first calibration there is nothing to read against, so make sure the head is empty yourself.
+
+Now **seat a passive tool on the Smart Head by hand** — the tool **must be empty** (no filament in the extruder gears) — then calibrate against the known locking force (default 1600 g). `CALIBRATE_LOAD_CELL_APPLY` locks, samples, then unlocks again so you can remove the tool by hand.
 
 ```gcode
 CALIBRATE_LOAD_CELL_APPLY GRAMS=1600
