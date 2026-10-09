@@ -1598,6 +1598,8 @@ T1  ; pick up tool 1
 T2  ; pick up tool 2
 ```
 
+Mainsail and Fluidd show these macros as tool buttons and mark the tool INDX has on the head. If you have more tools than `T0` to `T3`, add `variable_active: False` to each extra `T<n>` macro in `indx.cfg`, like the four that ship with it. A `T<n>` macro without that line still changes tools but does not show as active.
+
 > ⚠️ **Never remove a tool while the nozzle is heating.** If a tool is physically removed from the Smart Head while the induction coil is active, the firmware on the Bondtech INDX PCB will crash. You will need to run `FIRMWARE_RESTART` in the Klipper console before the printer can be used again.
 
 **Priming before a print**
