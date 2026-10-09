@@ -974,6 +974,46 @@ prefixed_probe_commands: true
 
 For Cartographer, add only the first line to `[cartographer]` — it will reject `prefixed_probe_commands`.
 
+##### Eddy current scanner (optional)
+
+The INDX toolboard has an LDC1612 eddy current scanner on board. It can scan bed meshes; Z homing stays on the load cell. This needs a Kalico build from 2026-10-08 or later (multiple probes, KalicoCrew/kalico#972, and `amplitude_errors`, KalicoCrew/kalico#1009).
+
+```ini
+[probe_eddy_current scanner]
+sensor_type: ldc1612
+i2c_mcu: indxmcu
+i2c_bus: sercom3
+intb_pin: indxmcu:ldc_int
+# The toolboard clocks the LDC1612 from its 25 MHz crystal
+frequency: 25000000
+# Scanner position relative to the nozzle (Smart Head CAD)
+x_offset: 0
+y_offset: 34.472
+z_offset: 1.0
+# The load cell stays the default probe; the scanner is selected with PROBE=scanner
+register_as_probe: False
+# The INDX coil trips the LDC1612 amplitude-low error in normal use
+amplitude_errors: high
+
+# Scanner coil temperature, for monitoring
+[temperature_sensor scanner_coil]
+sensor_type: indx
+indx_sensor: ldc_coil
+```
+
+Calibrate it once, with T0 on the head and the printer homed (`G28`):
+
+1. `LDC_CALIBRATE_DRIVE_CURRENT CHIP=scanner`, then `SAVE_CONFIG`.
+2. `G28` again, then `PROBE_EDDY_CURRENT_CALIBRATE CHIP=scanner`. Bring the nozzle down until it just touches the bed (the manual probe prompt), accept, and `SAVE_CONFIG`.
+
+Scan a mesh with `BED_MESH_CALIBRATE PROBE=scanner`. Without `PROBE=` the mesh is probed with the load cell. In `[bed_mesh]`:
+
+- `horizontal_move_z` must be above the scanner `z_offset` (for example 2), or every scanner probe starts already triggered.
+- Mesh coordinates are scanner positions, and the nozzle is 34.5 mm further toward the front. Pick `mesh_min` Y so the nozzle stays at or behind `clearance_y` (with `clearance_y: 0`, `mesh_min` Y 35 or more).
+- Set `zero_reference_position` to the G28 Z probe point (`probe_x`, `probe_y` in `indx.cfg`, or the bed centre). The mesh is then zeroed where the load cell set Z0, so the scanner only supplies the bed shape and its overall height drift cancels out.
+
+If a wrapper macro (KAMP or your own `PRINT_START`) calls `BED_MESH_CALIBRATE`, make it pass `PROBE=scanner`.
+
 ##### Automated dock X measurement (built in)
 
 Automated dock X measurement is **built into the INDX plugin** — there is no separate Python extra to install. The plugin registers `INDX_DOCK_MEASURE`, which energises the XY motors, homes Y then X from the dock, and derives the absolute dock position from the raw stepper counts (so it works for each tool in turn without a prior `G28`).
