@@ -978,13 +978,7 @@ For Cartographer, add only the first line to `[cartographer]` — it will reject
 
 The INDX toolboard has an LDC1612 eddy current scanner on board. It scans bed meshes; Z homing stays on the load cell, and the scanner only supplies the shape of the bed, never its height.
 
-It needs Kalico from 2026-10-08 or later. Three Kalico features it relies on were merged that day:
-
-- more than one probe on a printer (KalicoCrew/kalico#972): the load cell stays the default probe and the scanner is picked with `PROBE=scanner`;
-- `amplitude_errors` (KalicoCrew/kalico#1009): the INDX coil trips the LDC1612 amplitude-low error in normal use, and this setting lets Kalico ignore it;
-- rapid scan (KalicoCrew/kalico#1007): `METHOD=rapid_scan` reads the bed on the move instead of stopping at every point.
-
-Mainline Klipper does not have these. `git -C ~/klipper log -1 --format=%cd` shows the date of your Kalico.
+It needs Kalico from 2026-10-08 or later: if you have not updated Kalico since then, update it first (Mainsail or Fluidd, Update Manager). Mainline Klipper does not support it yet.
 
 ```ini
 [probe_eddy_current scanner]
@@ -1046,7 +1040,7 @@ Clearance: the scanner PCB sits 2.56 mm above the nozzle tip, but its mounting s
 | "Sensor readout error" during a scan | `amplitude_errors: high` |
 | "horizontal_move_z can't be less than probe's z_offset" | raise `horizontal_move_z` in `[bed_mesh]` |
 | "Sample rate is not high enough for the requested speed" | lower `SCAN_SPEED=` to the speed the message names, or below |
-| "METHOD=rapid_scan not supported ... using automatic" | Kalico older than 2026-10-08, or `PROBE=` does not name the scanner |
+| "METHOD=rapid_scan not supported ... using automatic" | update Kalico, or check that `PROBE=` names the scanner |
 | The mesh is probed by touching the bed | `PROBE=scanner` did not reach `BED_MESH_CALIBRATE`: check your print start or wrapper |
 
 ##### Automated dock X measurement (built in)
