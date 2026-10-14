@@ -976,7 +976,15 @@ For Cartographer, add only the first line to `[cartographer]` — it will reject
 
 ##### Eddy current scanner (optional)
 
-The INDX toolboard has an LDC1612 eddy current scanner on board. It can scan bed meshes; Z homing stays on the load cell. This needs a Kalico build from 2026-10-08 or later (multiple probes, KalicoCrew/kalico#972, and `amplitude_errors`, KalicoCrew/kalico#1009).
+The INDX toolboard has an LDC1612 eddy current scanner on board. It scans bed meshes; Z homing stays on the load cell, and the scanner only supplies the shape of the bed, never its height.
+
+It needs Kalico from 2026-10-08 or later. Three Kalico features it relies on were merged that day:
+
+- more than one probe on a printer (KalicoCrew/kalico#972): the load cell stays the default probe and the scanner is picked with `PROBE=scanner`;
+- `amplitude_errors` (KalicoCrew/kalico#1009): the INDX coil trips the LDC1612 amplitude-low error in normal use, and this setting lets Kalico ignore it;
+- rapid scan (KalicoCrew/kalico#1007): `METHOD=rapid_scan` reads the bed on the move instead of stopping at every point.
+
+Mainline Klipper does not have these. `git -C ~/klipper log -1 --format=%cd` shows the date of your Kalico.
 
 ```ini
 [probe_eddy_current scanner]
@@ -1001,18 +1009,45 @@ sensor_type: indx
 indx_sensor: ldc_coil
 ```
 
-Calibrate it once, with T0 on the head and the printer homed (`G28`):
+Calibrate it once, with T0 on the head, the nozzles cold and the printer homed (`G28`):
 
 1. `LDC_CALIBRATE_DRIVE_CURRENT CHIP=scanner`, then `SAVE_CONFIG`.
 2. `G28` again, then `PROBE_EDDY_CURRENT_CALIBRATE CHIP=scanner`. Bring the nozzle down until it just touches the bed (the manual probe prompt), accept, and `SAVE_CONFIG`.
 
-Scan a mesh with `BED_MESH_CALIBRATE PROBE=scanner`. Without `PROBE=` the mesh is probed with the load cell. In `[bed_mesh]`:
+Redo both after moving or replacing the scanner or the Smart Head mount.
+
+Scan a mesh with:
+
+```
+BED_MESH_CALIBRATE PROBE=scanner METHOD=rapid_scan
+```
+
+Without `PROBE=` the mesh is probed with the load cell, one touch per point. Without `METHOD=rapid_scan` the scanner stops at every point, which takes much longer. `ADAPTIVE=1` scans only the area of the print, and `SCAN_SPEED=` sets the scan speed (default the `[bed_mesh]` `speed`).
+
+In `[bed_mesh]`:
 
 - `horizontal_move_z` must be above the scanner `z_offset` (for example 2), or every scanner probe starts already triggered.
-- Mesh coordinates are scanner positions, and the nozzle is 34.5 mm further toward the front. Pick `mesh_min` Y so the nozzle stays at or behind `clearance_y` (with `clearance_y: 0`, `mesh_min` Y 35 or more).
+- Mesh coordinates are scanner positions, and the nozzle is 34.5 mm further toward the front. Pick `mesh_min` Y so the nozzle stays at or behind `clearance_y` (with `clearance_y: 0`, `mesh_min` Y 35 or more). The strip in front of that is extrapolated from the front row.
 - Set `zero_reference_position` to the G28 Z probe point (`probe_x`, `probe_y` in `indx.cfg`, or the bed centre). The mesh is then zeroed where the load cell set Z0, so the scanner only supplies the bed shape and its overall height drift cancels out.
+- The coil is about 17.6 mm across. A mesh spacing near that size already resolves what the scanner can see.
 
-If a wrapper macro (KAMP or your own `PRINT_START`) calls `BED_MESH_CALIBRATE`, make it pass `PROBE=scanner`.
+Good practice:
+
+- **Mesh with the nozzles cold.** The induction heater disturbs the scanner, and a nozzle that has just primed warms the coil and shifts its reading. In your print start, mesh before heating the nozzles.
+- **Level with the load cell, not the scanner.** Use the default probe for `QUAD_GANTRY_LEVEL` and `Z_TILT_ADJUST`; the scanner sits 34.5 mm behind the nozzle and reads gantry tilt slightly differently.
+- If a wrapper macro (KAMP or your own `PRINT_START`) calls `BED_MESH_CALIBRATE`, make it pass `PROBE=scanner METHOD=rapid_scan`. A wrapper that drops them can be bypassed by calling `_BED_MESH_CALIBRATE`, the built-in command it renamed.
+- To check the result, tap a few spots with the load cell (`PROBE`) and compare with the mesh.
+
+Clearance: the scanner PCB sits 2.56 mm above the nozzle tip, but its mounting screw heads are only about 0.89 mm above it, about 51 mm behind the nozzle. They catch anything more than about 0.9 mm above the current layer: curled overhangs, warped corners, blobs.
+
+| What you see | What to do |
+|---|---|
+| Klipper will not start: more than one probe registers itself | `register_as_probe: False` in `[probe_eddy_current scanner]` |
+| "Sensor readout error" during a scan | `amplitude_errors: high` |
+| "horizontal_move_z can't be less than probe's z_offset" | raise `horizontal_move_z` in `[bed_mesh]` |
+| "Sample rate is not high enough for the requested speed" | lower `SCAN_SPEED=` to the speed the message names, or below |
+| "METHOD=rapid_scan not supported ... using automatic" | Kalico older than 2026-10-08, or `PROBE=` does not name the scanner |
+| The mesh is probed by touching the bed | `PROBE=scanner` did not reach `BED_MESH_CALIBRATE`: check your print start or wrapper |
 
 ##### Automated dock X measurement (built in)
 
