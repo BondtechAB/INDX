@@ -976,7 +976,7 @@ For Cartographer, add only the first line to `[cartographer]` — it will reject
 
 ##### Eddy current scanner (optional)
 
-The INDX toolboard has an LDC1612 eddy current scanner on board. It scans bed meshes; Z homing stays on the load cell, and the scanner only supplies the shape of the bed, never its height.
+The INDX toolboard has the LDC1612 sensor chip on board. With the INDX Eddy Current Scanner coil connected (a separate product), it scans bed meshes; Z homing stays on the load cell, and the scanner only supplies the shape of the bed, never its height.
 
 It needs Kalico from 2026-10-08 or later: if you have not updated Kalico since then, update it first (Mainsail or Fluidd, Update Manager). Mainline Klipper does not support it yet.
 
