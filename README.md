@@ -42,6 +42,7 @@
      - [Method 2: Nudge](#method-2-nudge-automatic-requires-small-hardware)
      - [Method 3: Nozzle camera + CAL_ONE/TWO/THREE](#method-3-nozzle-camera-most-precise-xy-higher-cost)
      - [Z offset: CAL_Z](#z-offset-calibration)
+     - [Nozzle thermal Z compensation](#nozzle-thermal-z-compensation-optional)
    - [Temperature & Induction Settings](#temperature--induction-settings)
    - [Speed & Acceleration](#speed--acceleration)
 
@@ -1529,6 +1530,44 @@ Per tool, the macro:
 5. Parks the tool
 
 T0's median result sets the global Z reference. All other tools' offsets are saved as `t{n}_offset_z` relative to T0. Run `CAL_CHECK_OFFSETS` to inspect the results.
+
+#### Nozzle thermal Z compensation (optional)
+
+With a load cell the nozzle is the probe, so Z is measured at whatever temperature the nozzle has while probing: usually cold, or kept below where filament oozes. The print runs hotter, and the nozzle grows as it heats, so the first layer is printed closer than probed. On the INDX tools this was measured on, the growth is 0.032–0.035 mm per 100 °C and linear up to 250 °C: about 0.065 mm between a 30 °C `G28 Z` and a 230 °C print, a third of a 0.2 mm first layer. A single `global_z_offset` can only be right for one print temperature, and it moves with the room temperature too. The height that counts is the one `G28 Z` measured: with `zero_reference_position` at the `G28 Z` point the mesh is zeroed there and carries only the bed shape, whatever temperature it was probed at. If the load cell probes your mesh, set `zero_reference_position` to the `G28 Z` point (or probe the mesh at the `G28 Z` temperature); otherwise the mesh carries part of the growth and this would correct it twice.
+
+The INDX macros can compensate this per tool with the `[z_thermal_adjust]` module that Klipper and Kalico already ship. It adds `expansion × (nozzle temperature − reference)` to Z while you print; the macros switch the coefficient and the reference at every tool pickup, because tools do not expand equally (one tool here measured about 60 % of the others). Without a `[z_thermal_adjust]` section nothing changes.
+
+1. Add to `printer.cfg`, then `FIRMWARE_RESTART`:
+
+    ```ini
+    [z_thermal_adjust]
+    temp_coeff: 0                  # set per tool by the INDX macros
+    sensor_type: temperature_combined  # reads the extruder's sensor without claiming its pin
+    sensor_list: extruder          # the nozzle on the head
+    combination_method: max
+    maximum_deviation: 500
+    min_temp: -100                 # wide on purpose: this sensor shuts the printer
+    max_temp: 500                  # down outside its range, the heater has its own limits
+    smooth_time: 2.0
+    max_z_adjustment: 0.2          # a wrong coefficient can never move Z more than this
+    ```
+
+    Kalico allows several sections. If you already use `[z_thermal_adjust]` for frame expansion, name this one `[z_thermal_adjust nozzle]` and set `variable_component: "nozzle"` in `[gcode_macro _ZTA]` (`indx-cal.cfg`). Mainline Klipper allows only the unnamed one.
+
+2. Run `CAL_Z` once more, so the offsets are saved together with the nozzle temperature they were measured at (`cal_z_temp`). Cold or `NOZZLE_TEMP=` both work.
+
+3. Home, then measure each tool's expansion:
+
+    ```gcode
+    G28
+    CAL_Z_TEMP TOOL=all
+    ```
+
+    Per tool it probes one spot cold, at 150 °C and cold again, and saves `t{n}_nozzle_expansion` (mm per °C). About 3 minutes per tool. Keep the bed at one temperature during the run and clean the nozzle tips first. If the two cold readings disagree, nothing is saved for that tool: residue on the tip or a drifting machine. Clean the tip and run `CAL_Z_TEMP TOOL=n` again. Tools in `no_heat_tools` are skipped.
+
+4. Re-tune `global_z_offset` on the next print. Part of the old value was making up for the nozzle growth, so it usually comes down.
+
+`CAL_Z` and `CAL_Z_TEMP` switch the compensation off while they probe, because it would end up in their results. It comes back at the end. If a calibration stops with an error it stays off, and tools print uncompensated, until the next `G28 Z`.
 
 ---
 
