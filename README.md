@@ -1280,11 +1280,14 @@ The `LOAD_FILAMENT` macro wraps both of these together with tool selection — s
 
 **The model only uses the product.** Density and heat capacity are always multiplied together, never used separately, so how the value is split between the two doesn't matter — only that `density × heat_capacity` is right for the material. This is why a measured run reports `model_filament_density = 1.0000`: the measurement can only recover the product, so it pins density to 1 and folds everything into heat capacity. That isn't a failed measurement.
 
-**Values are remembered per tool.** `LOAD_FILAMENT TOOL=n TYPE=…` records the filament against that tool, and every subsequent pickup of it restores those values before the tool heats. Without that, the model would keep whichever material was loaded last on any tool, which on a multi-material print is the wrong filament for most of the job. You can set it directly for a tool at any time:
+**Values are remembered per tool.** `LOAD_FILAMENT TOOL=n TYPE=…` records the filament against that tool, and every subsequent pickup of it restores those values before the tool heats. Without that, the model would keep whichever material was loaded last on any tool, which on a multi-material print is the wrong filament for most of the job. You can set it directly for a tool at any time, either from a preset or with your own values:
 
 ```gcode
+SET_TOOL_FILAMENT TOOL=1 TYPE=TPU
 SET_TOOL_FILAMENT TOOL=1 DENSITY=1.21 HEAT_CAPACITY=1.80
 ```
+
+`TYPE=` also records the material against the tool, which decides whether the tool cools before docking (see [Flexible filaments](#loading-filament-into-tools)). Setting only `DENSITY=` and `HEAT_CAPACITY=` clears the recorded type, since the material is then unknown.
 
 Tools that have never been loaded through `LOAD_FILAMENT` or `SET_TOOL_FILAMENT` simply leave the model untouched on pickup.
 
@@ -1605,7 +1608,7 @@ LOAD_FILAMENT TOOL=0 TYPE=PLA
 ```
 
 - **`TOOL=<n>`** — which tool to load (it is picked up automatically).
-- **`TYPE=<material>`** — applies a density + heat-capacity preset and a default load temperature. Built-in types: `PLA`, `PETG`, `ABS`, `ASA`, `PA`, `PC`, `TPU`. Edit the `filament_presets` table in `indx-cal.cfg` to add materials or tune values. Presets may also set an optional `speed` (mm/s) for the feed/prime step; `TPU` uses 2 mm/s so soft filament does not buckle during guided load.
+- **`TYPE=<material>`** — applies a density + heat-capacity preset and a default load temperature. Built-in types: `PLA`, `PETG`, `ABS`, `ASA`, `PA`, `PC`, `TPU`. Edit the `filament_presets` table in `indx-cal.cfg` to add materials or tune values. Presets may also set an optional `speed` (mm/s) for the feed/prime step; `TPU` uses 2 mm/s so soft filament does not buckle during guided load. The type is recorded against the tool, and a preset with `park_max_temp` makes that tool cool down before it docks (see Flexible filaments below).
 - **`TEMP=<°C>`** *(optional)* — override the preset load temperature.
 - **`MEASURE=1`** *(optional)* — measure this filament's actual heat capacity while loading instead of using the preset (most accurate). Run `SAVE_CONFIG` afterwards to keep it.
 
@@ -1629,6 +1632,8 @@ Either approach significantly reduces the risk of tubes interfering with docked 
 **Flexible filaments (TPU and similar)**
 
 Keep the filament path as short as possible. Long Bowden paths cause flex filament to buckle rather than feed. Where possible, feed directly into the tool without a Bowden tube, or use a very short, straight tube. Avoid sharp bends in the path. `LOAD_FILAMENT TYPE=TPU` also feeds slower than other presets (2 mm/s); tune `speed` in `filament_presets` if needed.
+
+Flexible filament stays stretched in the Bowden tube. Once the tool is in its dock the extruder no longer holds it, and that tension pulls the filament back. If the nozzle is still molten, the melt gets pulled out of the hot zone with it. A tool loaded with `TYPE=TPU` (through `LOAD_FILAMENT` or `SET_TOOL_FILAMENT`) therefore cools before it docks: the park stops at `clearance_y` in front of the dock, runs the part cooling fan at full speed and waits until the nozzle is below the preset's `park_max_temp` (100 °C for `TPU`), then docks as usual. The glass transition is not the right limit here, since for TPU it is far below room temperature; what matters is that the melt has set, so take the Vicat softening temperature from your filament's datasheet as a guide. Add `park_max_temp` to any other preset that needs the same, or remove it from `TPU` to dock without waiting. Tools without a recorded type dock straight away.
 
 ### Performing Tool Changes
 
