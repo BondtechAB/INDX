@@ -806,7 +806,7 @@ pid_b: 1.0
 [extruder]
 sensor_type: indx  # Custom sensor type provided by the INDX plugin — reads temperature via the IR sensor on the induction board
 min_temp: 0
-max_temp: 350
+max_temp: 300
 smooth_time: 0.3  # Reduce display and wait-condition lag during rapid induction heat-up
 
 heater_pin: indx:heater
